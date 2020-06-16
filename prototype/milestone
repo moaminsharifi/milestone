@@ -94,9 +94,9 @@ STRIKE_THROUGH="\e[9m"
 STRIKE_THROUGH_ESCAPED="\\\e\[9m"
 
 usage() {
-	echo "** Milestone Prototype **"
+	echo -e $BOLD"** Milestone Prototype **"$DEFAULT
 	echo
-	echo "General Options"
+	echo -e "General Options"
 	echo
 	echo "-h, --help		show help"
 	echo "-p, --practices		begin practicing"
@@ -1011,16 +1011,6 @@ do
 	topic=$(echo "$line" | grep -oE "^\#\#" | wc -l)
 	nexttopic=$(echo $nextline | grep -oE "^\#\#" | wc -l)
 
-	if ! $DEFAULT
-	then
-	echo
-	echo "$line"
-	echo "topic: $topic"
-	echo "next topic: $nexttopic"
-	echo
-	continue
-	fi
-
 	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]
 	then
 		continue
@@ -1048,7 +1038,7 @@ parse_option() {
 		usage;
 		return;
 		;;
-	"-d"|"--mark-done")
+	"-d")
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_DONE=true;
@@ -1068,7 +1058,7 @@ parse_option() {
 		MARK_NOT_VALUE=$option_value;
 		DECREMENT_PROGRESS=true;
 		;;
-	"-D"|"--mark-not-done")
+	"-D")
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_NOT_DONE=true;
@@ -1078,8 +1068,8 @@ parse_option() {
 		ACTIVITY_OPTIONS=true;
 		RESET_OPTION=true;
 		;;
-	"--reorder")
-		ACTIVITY_OPTIONS=true;
+	"-r"|"--reorder")
+		ACTIVITY_OPTIONS=false;
 		REORDER_OPTION=true;
 		;;
 	"-p"|"--practices")
