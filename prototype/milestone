@@ -1,0 +1,1277 @@
+#!/bin/bash
+
+current_version="v0.7.8"
+location=~/.local/share/practices
+source_file=~/.milestone
+practice_tree=~/.practices
+practice_file=$(date +%F).list
+practice_map=/tmp/milestone/$(echo $(whoami))-practice.map;
+daily_practice_list=/tmp/milestone/$(echo $(whoami))-practice-days.list;
+cycle_map_file=/tmp/milestone/$(echo $(whoami))-cycle.map;
+PREFERENCE_MONTH=$(date +%Y-%m);
+PAIR_OPTION=false;
+SHOW_HISTOGRAM=false;
+COLORED=true; # can be disabled manually!
+INSPECT=false;
+PRACTICAL_HISTOGRAM=false;
+MINIMUM_LIMIT=0;
+MOJI=false;
+FIRST_INDENT=true;
+EASY_READ=false;
+TODAY=$(date +%d);
+now=$(date +%Fh%R | tr ':' '-');
+vnow=$now;
+sync_time() { now=$(date +%Fh%R | tr ':' '-'); }
+custom_time() { vnow=$(date -d "$1" +%Fh%R | tr ':' '-'); }
+custom_vtime() {
+	vtime=$(echo "$1" | sed -r 's/(.*)h([0-9]*)-([0-9]*)$/\1 \2:\3/');
+	vnow=$(date -d "$vtime" +%Fh%R | tr ':' '-');
+}
+
+MINIMUM_MONTHLY_DONE_PER_TASK=$(expr $TODAY \* 2 / 5);
+AVERAGE_MONTHLY_DONE_PER_TASK=$(expr $TODAY \* 3 / 5);
+HIGH_MONTHLY_DONE_PER_TASK=$(expr $TODAY \* 4 / 5);
+if [ $MINIMUM_MONTHLY_DONE_PER_TASK -eq 0 ]; then MINIMUM_MONTHLY_DONE_PER_TASK=1; fi
+if [ $AVERAGE_MONTHLY_DONE_PER_TASK -eq 0 ]; then AVERAGE_MONTHLY_DONE_PER_TASK=1; fi
+if [ $HIGH_MONTHLY_DONE_PER_TASK -eq 0 ]; then HIGH_MONTHLY_DONE_PER_TASK=1; fi
+DISPLAY_WIDTH=$(tput cols); # make histogram responsive on terminal!
+MARK_DONE=false;
+MARK_NOT_DONE=false;
+INSPECT_OPTION=false;
+REPRESENT_OPTION=false;
+PREFERENCE_OPTION=false;
+RESET_OPTION=false;
+VERBOSE_OPTION=false;
+ACTIVITY_OPTIONS=false;
+SQUEEZE_OPTION=false;
+SHOW_TASK_OPTION=false;
+FORCE_UPDATE=false;
+CHECK_UPDATE_OPTION=false;
+UNINSTALL_OPTION=false;
+#DISPLAY_WIDTH=18;
+DISABLED_OPTION=false;
+DAILY_REPORT=false;
+PERIODICAL_HISTOGRAM=false;
+max_cycle_length=3;
+critical_tasks_per_day=3;
+DOUBLE_INDENT=false;
+FORCE_RESET=false;
+CICLE_REPRESENTATION_OPTION=false;
+REORDER_OPTION=false;
+ring_list=
+INCREMENT_PROGRESS=false;
+DECREMENT_PROGRESS=false;
+PRACTICES_OPTION=false;
+
+# color codes
+DARK="\e[30m"
+RED="\e[31m"
+RED_ESCAPED="\\\e\[31m"
+GREEN="\e[32m"
+YELLOW="\e[33m"
+BLUE="\e[34m"
+VIOLET="\e[35m"
+CYAN="\e[36m"
+GRAY="\e[37m"
+LIGHT_GRAY="\e[1;30m"
+DARK_GRAY="\e[1;90m"
+ORANGE="\e[38;5;202m" # sometimes pink!
+LIGHT_RED="\e[1;31m"
+LIGHT_GREEN="\e[1;32m"
+LIGHT_YELLOW="\e[1;33m"
+LIGHT_BLUE="\e[1;34m"
+LIGHT_VIOLET="\e[1;35m"
+LIGHT_CYAN="\e[1;36m"
+UNCOLOR="\e[39m"
+DEFAULT="\e[39m\e[49m\e[0m"
+DEFAULT_ESCAPED="\\\e\[39m\\\e\[49m\\\e\[0m"
+BOLD="\e[1m"
+DIM="\e[2m"
+RESET_BOLD="\e[21m"
+BLINK="\e[5m"
+BLINK_ESCAPED="\\\e\[5m"
+STRIKE_THROUGH="\e[9m"
+STRIKE_THROUGH_ESCAPED="\\\e\[9m"
+
+usage() {
+	echo "** Milestone Prototype **"
+	echo
+	echo "General Options"
+	echo
+	echo "-h, --help		show help"
+	echo "-p, --practices		begin practicing"
+	echo "-u, --update		update program"
+	echo "-r, --reorder			reorder cycle"
+	echo "-v, --version		show program version"
+	echo "--uninstall		uninstall milestone"
+	echo
+	echo "Editing Options"
+	echo
+	echo "-d <n>			mark as done"
+	echo "-d+ <n>			mark as done and increment progress"
+	echo "-D <n>			mark as not done"
+	echo "-D+ <n>			mark as not done and decrement progress"
+	echo
+}
+
+# gets file as first parameter
+show_practices() {
+	while read practice; do
+		checked=$(echo "$practice" | grep -o '\-\-' | wc -l);
+		practice_number=$(echo "$practice" | cut -d'	' -f1 | sed -r 's/^.*[^0-9]([0-9]*)$/\1/');
+		practice_title=$(echo "$practice" | cut -d'	' -f2);
+		practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]');
+
+		if test -n "$practice_info"; then
+			informative=true;
+		else
+			informative=false;
+		fi
+
+		practice_info=$(echo $practice_info | sed 's/^#[\ !?0-9]\ *//');
+		if $informative && test -n "$practice_info"; then
+			practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
+			practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
+			practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
+
+			# if all resources are used, or complete is specified
+			if [ "$practice_unit" == "complete" ]; then
+				percentage=100;
+			else
+				percentage=$(expr $practice_progress \* 100 / $practice_total);
+			fi
+
+			if [ $percentage -eq 100 ]; then
+				progress="$LIGHT_VIOLET";
+			else
+				progress="$VIOLET";
+			fi
+
+			if [ $percentage -eq 100 ]; then
+				progress="$progress (complete)$DEFAULT";
+			else
+				progress="$progress ($percentage% - $practice_unit $practice_progress of $practice_total)$DEFAULT";
+			fi
+		else
+			practice_unit=;
+			practice_progress=;
+			practice_total=;
+			progress=
+		fi
+
+		if [ $checked -gt 0 ]; then
+			bash_seq="$COLOR_OF_DAY$STRIKE_THROUGH";
+		else
+			bash_seq=;
+		fi
+
+		printf "%6s\t" $practice_number;
+		echo -e "$bash_seq$practice_title$DEFAULT$progress";
+
+	done <<< $(cat $1) | column;
+	echo;
+}
+
+represent() {
+	make_practice;
+	echo -e $CYAN"Daily Progress"$DEFAULT; echo;
+	TOTAL_TASKS=$(cat $location/$practice_file | sed '/^\ *$/d' | grep -v "#" | wc -l);
+	DONE_COUNT=$(grep -o "\-\-" $location/$practice_file | wc -l | cut -d' ' -f1);
+	MINIMUM_DONE=$(expr $TOTAL_TASKS / 4);
+	MEDIUM_DONE=$(expr $TOTAL_TASKS \* 3 / 5);
+	ESCAPED_DEFAULT="\\\e\[0m";
+	COLOR_OF_DAY=$LIGHT_GREEN;
+
+	show_practices $location/$practice_file
+}
+
+show_cycle() {
+	sync_time;
+	custom_vtime $cycle_start_time;
+	first_cycle_day=$(date +%s -d "$vtime");
+	if [ "$cycle_end_time" == "future" ]; then
+		custom_vtime $now;
+		last_cycle_day=$(date +%s -d "$vtime");
+	else
+		custom_vtime $cycle_end_time;
+		last_cycle_day=$vtime;
+	fi
+	last_cycle_day=$(date +%s -d "$vtime");
+	cycle_day=$(echo "(($last_cycle_day - $first_cycle_day) / 60 / 60 / 24) + 1" | bc);
+	TOTAL_TASKS=$(cat $location/$cycle_file | sed '/^\ *$/d' | wc -l);
+	DONE_COUNT=$(grep -o "\-\-" $location/$cycle_file | wc -l);
+	cycle_percentage=$(expr $DONE_COUNT \* 100 \/ $TOTAL_TASKS);
+	MINIMUM_DONE=$(expr $TOTAL_TASKS / 4);
+	MEDIUM_DONE=$(expr $TOTAL_TASKS \* 3 / 5);
+	ESCAPED_DEFAULT="\\\e\[0m";
+	COLOR_OF_DAY=$LIGHT_GREEN;
+
+	echo -e $LIGHT_CYAN"Cycle $cycle_number$DEFAULT$CYAN - $cycle_percentage% (day $cycle_day)"$DEFAULT; echo;
+
+	# show ring of current cycle
+	for ring_file in $ring_list; do
+		ring_number=$(echo $ring_file | sed -r 's/.*ring([0-9]*).*/\1/');
+		ring_start_day=$(echo $ring_file | sed -r 's/^.*ring[0-9]*_(.*)_(.*).list$/\1/');
+		ring_end_day=$(echo $ring_file | sed -r 's/^.*ring[0-9]*_(.*)_(.*).list$/\2/');
+		if test "$ring_end_day" == "future"; then sync_time; ring_end_day=$now; fi;
+
+		custom_vtime $ring_start_day;
+		ring_start_day=$(date +%s -d "$vtime");
+		custom_vtime $ring_end_day;
+		ring_end_day=$(date +%s -d "$vtime");
+		ring_day=$(echo "(($ring_end_day - $ring_start_day) / 60 / 60 / 24) + 1" | bc);
+		ring_total=$(cat $location/$ring_file | sed '/^\ *$/d' | wc -l);
+		ring_done=$(grep -o "\-\-" $location/$ring_file | wc -l);
+		ring_percentage=$(expr $ring_done \* 100 \/ $ring_total);
+
+		echo -e $LIGHT_CYAN"    Ring $ring_number$DEFAULT$CYAN - $ring_percentage% (day $ring_day)"$DEFAULT; echo;
+		show_practices $location/$ring_file
+	done
+}
+
+show_disabled_goals() {
+	echo -e $CYAN"Disabled Goals"$DEFAULT; echo;
+	cat $source_file | grep -E "^#[^#+\!\ ]" | cut -d'#' -f2- | sort | nl | column
+}
+
+mark_done() {
+	PRACTICE_NUMBER=$1;
+	MIN_NUMBER=1;
+	MAX_NUMBER=$(cat $location/$cycle_file | cut -d'	' -f1 | sed 's/^--//' | sort -n | tail -n1 | xargs)
+	record=$(grep -E "^-?-?\ *.*[^0-9]$PRACTICE_NUMBER\	.*$" $(echo $ring_list | tr ' ' '\n' | sed s,^,$location\/, | xargs));
+	record_file=$(echo $record | cut -d':' -f1);
+	if test "$(echo $record | cut -d':' -f2 | cut -d' ' -f1)" == "--"; then already_done=true; else already_done=false; fi
+	practice_title=$(echo $record | cut -d':' -f2 | sed 's/^\-\-\ //' | xargs | cut -d' ' -f2- | sed 's/\ *(.*)//');
+
+	if [ $PRACTICE_NUMBER -ge $MIN_NUMBER ] && [ $PRACTICE_NUMBER -le $MAX_NUMBER ]; then
+		if $already_done; then
+			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> as$BOLD done$DEFAULT";
+		else
+			echo -ne "Marking <$LIGHT_YELLOW$practice_title$DEFAULT> as$GREEN done$DEFAULT"
+			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; else echo; fi
+			sed -i -r s,^.*[^0-9]$PRACTICE_NUMBER[^0-9]\(.*\)$,"$(printf "\-\-%4s" $PRACTICE_NUMBER)"\\\t\\\1, $location/$practice_file;
+			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $location/$cycle_file;
+			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $record_file;
+		fi
+	else
+		echo "Incorrect practice number";
+		return;
+	fi
+
+	## increment progress unit if exists
+if $INCREMENT_PROGRESS; then
+	practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
+	if test -n "$practice_info"; then
+		practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
+		practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
+		practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
+		if [ "$practice_unit" == "complete" ] || [ $(expr $practice_progress + 1) -gt $practice_total ]; then
+			echo -e "You finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
+			return;
+		fi
+		sed -i -rz "s/$practice_unit\ *$practice_progress\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $(expr $practice_progress + 1)\/$practice_total\1/" $source_file;
+	fi
+fi
+}
+
+mark_not_done() {
+	PRACTICE_NUMBER=$1;
+	MIN_NUMBER=0;
+	MAX_NUMBER=$(cat $location/$cycle_file | cut -d'	' -f1 | sed 's/^--//' | sort -n | tail -n1 | xargs)
+	RECORD=$(grep -E "^[^#]" $source_file | sort | sed '/^\ *$/d' | nl -bp^[^#] | grep -E "^\ *$PRACTICE_NUMBER[^0-9]\ *.*$" | xargs | sed 's/^\-\-\ //');
+	PRACTICE_TITLE=$(echo "$RECORD" | cut -d' ' -f2-);
+	record=$(grep -E "^-?-?\ *.*[^0-9]$PRACTICE_NUMBER\	$PRACTICE_TITLE$" $(echo $ring_list | tr ' ' '\n' | sed s,^,$location\/, | xargs));
+	record_file=$(echo $record | cut -d':' -f1);
+	practice_title=$(echo $record | cut -d':' -f2 | sed 's/^\-\-\ //' | xargs | cut -d' ' -f2- | sed 's/\ *(.*)//');
+	if test "$(echo $record | cut -d':' -f2 | cut -d' ' -f1)" == "--"; then already_done=true; else already_done=false; fi
+
+	if [ $PRACTICE_NUMBER -gt $MIN_NUMBER ] && [ $PRACTICE_NUMBER -le $MAX_NUMBER ]; then
+		if ! $already_done; then
+			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW"$PRACTICE_TITLE"$DEFAULT> as$BOLD not done$DEFAULT";
+		else
+			echo -ne "Marking <$LIGHT_YELLOW"$PRACTICE_TITLE"$DEFAULT> as$BOLD not done$DEFAULT"
+			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; else echo; fi
+			PRACTICE_TITLE=$(echo $PRACTICE_TITLE | sed 's/,/\\,/g');
+			SUBSTITUTION=$(printf "%6s\t" $PRACTICE_NUMBER);
+			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $location/$practice_file;
+			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $location/$cycle_file;
+			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $record_file;
+		fi
+	else
+		echo "Incorrect practice number";
+	fi
+
+	## decrement progress unit if exists
+if $DECREMENT_PROGRESS; then
+	practice_info=$(grep -B1 -E "^$practice_title$" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
+	if test -n "$practice_info"; then
+		practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
+		practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
+		practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
+		if [ "$practice_unit" == "complete" ] || [ $(expr $practice_progress - 1) -lt 0 ]; then
+			echo -e "Resources are already complete for <$LIGHT_YELLOW$practice_title$DEFAULT>";
+			return;
+		fi
+		sed -i -rz "s/$practice_unit\ *$practice_progress\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $(expr $practice_progress - 1)\/$practice_total\1/" $source_file;
+	fi
+fi
+
+}
+
+make_practice() {
+	# check if today's practice file exists
+	if ! [ -f $location/$practice_file ]; then
+		#grep -E "^[^#]" $source_file | sort | sed '/^\ *$/d' | nl -bp^[^#] > $location/$practice_file;
+		#grep -E "^[#][^+!]" $source_file | sort | sed '/^\ *$/d' | nl -bp^[#] >> $location/$practice_file;
+
+		routine_task=false;
+                while read line; do
+                        if [ "$line" == "#!" ]; then
+                                routine_task=true;
+                        elif $routine_task; then
+                                echo -e "$line-!";
+                                routine_task=false;
+                        elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
+                                echo $line;
+                        else continue;
+                        fi;
+                done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > $location/$practice_file;
+	fi
+
+	# make cycle
+	if ! [ -f $location/$cycle_file ]; then
+		routine_task=false;
+                while read line; do
+                        if [ "$line" == "#!" ]; then
+                                routine_task=true;
+                        elif $routine_task; then
+                                echo -e "$line-!";
+                                routine_task=false;
+                        elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
+                                echo $line;
+                        else continue;
+                        fi;
+                done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > $location/$practice_file;
+
+	fi
+}
+
+histogram_indent() {
+	if $FIRST_HISTO_DAY; then
+		if $DOUBLE_INDENT; then echo -n "  "; else echo -n " "; fi;
+	else
+		if $DOUBLE_INDENT; then echo -n "    "; else echo -n "  "; fi;
+	fi
+	FIRST_HISTO_DAY=false;
+}
+
+analyze() {
+	DAYS_COUNT=$(ls -1 ~/.local/share/practices/$PREFERENCE_MONTH-??.list | wc -l);
+
+	# list of days to be processed
+	ls ~/.local/share/practices/$PREFERENCE_MONTH-??.list | sort > $daily_practice_list
+
+	# x-axis length to sequeeze histogram
+	# 4 is the length of each square in histogram
+	# 10 is the left and right margin
+	MAX_X_AXIS_LENGTH=$(echo "($DISPLAY_WIDTH - 10 ) / 4" | bc)
+
+	# remove map file
+	if test -f $practice_map; then rm $practice_map; fi
+
+# fill up histogram
+if $PRACTICAL_HISTOGRAM; then
+	echo -e $CYAN"Day-Practice Histogram"$DEFAULT; echo;
+	# create practice list
+	while read HISTORY_FILE; do
+		cat $HISTORY_FILE | grep -v "#" | uniq | cut -f2 | sed 's/\-\-\ *//';
+	done <<< $(ls ~/.local/share/practices/$PREFERENCE_MONTH-??.list | sort) | sort | uniq | sed '/^\ *$/d' > $practice_map 
+
+	# print practice list
+	if $COLORED; then echo -ne $BOLD; fi
+	echo "Practice List";
+	if $COLORED; then echo -e $DEFAULT; else echo; fi
+	while read line; do
+		LINE_NUMBER=$(echo $line | cut -d' ' -f 1);
+		PRACTICE_TITLE=$(echo $line | cut -d' ' -f 2-);
+		printf "%6s\t" $LINE_NUMBER;
+		if $INSPECT && [ $LINE_NUMBER -eq $INDICATOR ]; then
+			echo -e $BLINK$PRACTICE_TITLE$DEFAULT;
+		else
+			echo $PRACTICE_TITLE;
+		fi
+	done <<< $(nl $practice_map) | column;
+	echo;
+
+	# color legen
+	if $COLORED; then
+		column <<< $(echo -ne $BOLD"Color Legend$DEFAULT\n$BOLD\u2588\u2588$DEFAULT: weak progress\n"$ORANGE"\u2588\u2588$DEFAULT: medium progress\n"$LIGHT_YELLOW"\u2588\u2588$DEFAULT: normal progress\n"$GREEN"\u2588\u2588$DEFAULT: great progress");
+		echo;
+	fi
+
+	# start graph
+	echo "practice #";
+	echo -e "   \u28c";
+	echo "   |";
+
+	# number of practices, practices might be more than expected due to renames and new practices
+	PRACTICE_COUNT=$(wc -l $practice_map | cut -d' ' -f1)
+
+	for TASK_NUMBER in $(seq $PRACTICE_COUNT -1 1); do
+		printf "%2d |" $TASK_NUMBER;
+		# easter egg
+		if $MOJI && [ $TASK_NUMBER -eq 6 ]; then echo -e " $BOLD\u2665\u2665\u2665 love you Moji \u2665\u2665\u2665$DEFAULT"; continue; fi
+
+		# get practice title
+		PRACTICE_TITLE=$(sed -n "$TASK_NUMBER"p $practice_map)
+
+		TOTAL_TASK_DONE=$(grep -o "\-\-.*$PRACTICE_TITLE" ~/.local/share/practices/$PREFERENCE_MONTH-??.list | wc -l | cut -d' ' -f1)
+
+		# squeeze histogram
+		PERIOD_LENGTH=$(expr $DAYS_COUNT / $MAX_X_AXIS_LENGTH + 1);
+		PERIOD_TASK_DONE=0;
+
+		# plot
+		FIRST_HISTO_DAY=true;
+		BACKGROUND_FLIP=false;
+		for DAY_INDEX in $(seq 1 $DAYS_COUNT); do
+			HISTORY_FILE=$(head -n $DAY_INDEX $daily_practice_list | tail -n1);
+			TASK_DONE=$(grep -Eo "\-\-.*$PRACTICE_TITLE" $HISTORY_FILE | wc -l | cut -d' ' -f1);
+			if [ $PERIOD_TASK_DONE -eq 0 ] && [ $TASK_DONE -gt 0 ]; then PERIOD_TASK_DONE=1; fi
+
+			# sequeezer
+			if [ $(expr $DAY_INDEX % $PERIOD_LENGTH) -ne 0 ]; then
+				continue;
+			else
+				TASK_DONE=$PERIOD_TASK_DONE;
+				PERIOD_TASK_DONE=0;
+			fi
+			histogram_indent;
+
+			if [ $TOTAL_TASK_DONE -le $MINIMUM_MONTHLY_DONE_PER_TASK ] && $COLORED; then
+				SQUARE_COLOR=$RED;
+			elif [ $TOTAL_TASK_DONE -gt $MINIMUM_MONTHLY_DONE_PER_TASK ] && [ $TOTAL_TASK_DONE -le $AVERAGE_MONTHLY_DONE_PER_TASK ] && $COLORED; then
+				SQUARE_COLOR=$ORANGE;
+			elif [ $TOTAL_TASK_DONE -gt $AVERAGE_MONTHLY_DONE_PER_TASK ] && [ $TOTAL_TASK_DONE -le $HIGH_MONTHLY_DONE_PER_TASK ] && $COLORED; then
+				SQUARE_COLOR=$LIGHT_YELLOW;
+			elif [ $TOTAL_TASK_DONE -gt $HIGH_MONTHLY_DONE_PER_TASK ] && $COLORED; then
+				SQUARE_COLOR=$GREEN;
+			else
+				SQUARE_COLOR=$DEFAULT;
+			fi
+			if $INSPECT && [ $TASK_NUMBER -eq $INDICATOR ]; then SQUARE_COLOR=$SQUARE_COLOR$BLINK; fi
+
+			# put the squares in histogram
+			if [ $TASK_DONE -eq 1 ]; then
+				echo -ne $SQUARE_COLOR"\u2588\u2588"$DEFAULT;
+				if $BACKGROUND_FLIP; then BACKGROUND_FLIP=false; else BACKGROUND_FLIP=true; fi
+			else
+				if $COLORED && $EASY_READ; then
+					if [ $(expr $TASK_NUMBER % 2) -gt 0 ]; then
+						echo -ne "$DIM$DARK_GRAY\u2588\u2588"$DEFAULT;
+					else
+						echo -ne "$DIM$DARK\u2588\u2588"$DEFAULT;
+					fi
+					BACKGROUND_FLIP=false;
+				else
+					histogram_indent;
+					BACKGROUND_FLIP=true;
+				fi
+			fi
+		done
+		echo
+	done
+
+	# write x-axis
+	histogram_indent;
+	histogram_indent;
+	printf "%0.s-" $(seq 1 $(expr $DAYS_COUNT / $PERIOD_LENGTH \* 4)); echo "> days";
+
+	# write day numbers under x-axis
+	histogram_indent;
+	histogram_indent;
+	DAY_COUNTER=0;
+	for DAY_INDEX in $(seq 1 $DAYS_COUNT); do
+		HISTORY_FILE=$(head -n $DAY_INDEX $daily_practice_list | tail -n1);
+		DAY_NUMBER=$(basename $HISTORY_FILE | sed -r 's/[0-9]*-[0-9]*-([0-9]*)\.list/\1/');
+		if [ $PERIOD_LENGTH -gt 1 ] && [ $(expr $DAY_COUNTER % $PERIOD_LENGTH) -gt 0 ]; then
+			DAY_COUNTER=$(expr $DAY_COUNTER + 1);
+			continue;
+		fi
+		printf " %2s " $DAY_NUMBER;
+		DAY_COUNTER=$(expr $DAY_COUNTER + 1);
+	done
+
+elif $PERIODICAL_HISTOGRAM; then
+	echo -e $CYAN"Timeline-Cycle Histogram"$DEFAULT; echo;
+
+	DOUBLE_INDENT=true;
+	# start graph
+	echo "days";
+	echo -e "   \u28c";
+	echo "   |";
+
+	# number of practices
+	grep -v "#" $source_file | uniq | sed '/^$/d' | nl > /tmp/milestone/$(echo $(whoami))-cycle.tmp;
+	PRACTICE_COUNT=$(wc -l /tmp/milestone/$(echo $(whoami))-cycle.tmp | cut -d' ' -f1)
+	TOTAL_COUNT=$PRACTICE_COUNT;
+	MINIMUM_LIMIT=$(expr $PRACTICE_COUNT \* 4 / 5);
+
+	# create a day-cycle map file
+	ls $location/cycle*_$(date +%Y)-$(date +%m)-*_*.list | sort > /tmp/milestone/$(echo $(whoami))-cycle.list;
+	first_cycle=$(head -n1 /tmp/milestone/$(echo $(whoami))-cycle.list | head -n1 | sed -r 's/^.*cycle([0-9]*)_.*.list/\1/');
+	cycle_number=$(tail -n1 /tmp/milestone/$(echo $(whoami))-cycle.list | sed -r 's/^.*cycle([0-9]*)_.*.list/\1/');
+	longest_cycle=1;
+	if [ -f $cycle_map_file ]; then rm $cycle_map_file; fi
+	while read CYCLE_FILE; do
+		cycle_number=$(echo $CYCLE_FILE | sed -r 's/^.*cycle([0-9]*)_.*.list/\1/');
+		first_cycle_day=$(echo $CYCLE_FILE | sed -r 's/^.*cycle[0-9]*_(.*)_(.*).list/\1/');
+		last_cycle_day=$(echo $CYCLE_FILE | sed -r 's/^.*cycle[0-9]*_(.*)_(.*).list/\2/');
+
+		## new cycle is holding tomorrow's credits
+		if [ $(expr $(date -d $first_cycle_day +%s) - $(date +%s)) -gt 0 ]; then
+			first_cycle_day=$(date +%F);
+		fi
+
+		if test "$last_cycle_day" == "future"; then
+			cycle_duration=$(echo "(($(date +%s) - $(date -d $first_cycle_day +%s)) / 60 / 60 / 24) + 1" | bc);
+		else
+			cycle_duration=$(echo "(($(date -d $last_cycle_day +%s) - $(date -d $first_cycle_day +%s)) / 60 / 60 / 24) + 1" | bc);
+		fi;
+		if [ $cycle_duration -gt $longest_cycle ]; then longest_cycle=$cycle_duration; fi
+		echo "$cycle_number:$cycle_duration:$first_cycle_day:$last_cycle_day" >> $cycle_map_file
+	done <<< $(cat /tmp/milestone/$(echo $(whoami))-cycle.list);
+	cycles_count=$(wc -l $cycle_map_file | cut -d' ' -f1);
+
+	# squeeze histogram
+	PERIOD_LENGTH=$(expr $cycles_count / $MAX_X_AXIS_LENGTH + 1);
+	PERIOD_TASK_DONE=0;
+
+	total_critical_tasks=$(grep -o "!" ~/.local/share/practices/$first_cycle_day.list | wc -l);
+
+	regular_tasks=$(expr $TOTAL_COUNT - $total_critical_tasks);
+	max_regular_cycle_length=$(expr $regular_tasks / $MINIMUM_MONTHLY_DONE_PER_TASK);
+	regular_critical_difference=$(expr $max_regular_cycle_length - $total_critical_tasks);
+	if [ $regular_critical_difference -lt 0 ]; then regular_critical_difference=$(expr $regular_critical_difference \* -1); fi;
+	normal_cycle_length=$(expr $regular_critical_difference + $max_regular_cycle_length);
+
+	for day_number in $(seq $(expr $longest_cycle + 1) -1 1); do
+		printf "%2d |" $day_number;
+		# easter egg
+		if $MOJI && [ $day_number -eq 6 ]; then echo -e " $BOLD\u2665\u2665\u2665 love you Moji \u2665\u2665\u2665$DEFAULT"; continue; fi
+
+		# plot
+		FIRST_HISTO_DAY=true;
+		BACKGROUND_FLIP=false;
+		for cycle_index in $(seq 1 $(expr $cycle_number - $first_cycle + 1)); do
+			CYCLE_MAP=$(head -n $cycle_index $cycle_map_file | tail -n1);
+			CYCLE_NUMBER=$(echo $CYCLE_MAP | cut -d':' -f1);
+			CYCLE_LENGTH=$(echo $CYCLE_MAP | cut -d':' -f2);
+			CYCLE_FIRST_DAY=$(echo $CYCLE_MAP | cut -d':' -f3);
+			CYCLE_LAST_DAY=$(echo $CYCLE_MAP | cut -d':' -f4);
+			DONE_COUNT=$(grep -Eo "\-\-.*" $location/cycle$CYCLE_NUMBER\_*.list | wc -l | cut -f1);
+			if [ $PERIOD_LENGTH -gt 0 ]; then PERIOD_TASK_DONE=$(expr $DONE_COUNT + $PERIOD_TASK_DONE); fi
+
+			# sequeezer
+			if [ $(expr $cycle_index % $PERIOD_LENGTH) -ne 0 ]; then
+				continue;
+			else
+				DONE_COUNT=$(expr $PERIOD_TASK_DONE / $PERIOD_LENGTH);
+				PERIOD_TASK_DONE=0;
+			fi
+
+			histogram_indent;
+			if [ $CYCLE_LENGTH -gt 0 ] && [ $CYCLE_LENGTH -ge $day_number ]; then
+				if [ $CYCLE_LENGTH -gt $total_critical_tasks ] && $COLORED; then
+					echo -ne "$LIGHT_RED\u2588\u2588$DEFAULT";
+				elif [ $CYCLE_LENGTH -gt $normal_cycle_length ] && $COLORED; then
+					echo -ne "$LIGHT_YELLOW\u2588\u2588$DEFAULT";
+				else
+					echo -ne "$LIGHT_GREEN\u2588\u2588$DEFAULT";
+				fi
+				if $BACKGROUND_FLIP; then BACKGROUND_FLIP=false; else BACKGROUND_FLIP=true; fi
+			else
+				if $COLORED && $EASY_READ; then
+					if [ $(expr $day_number % 2) -gt 0 ]; then
+						echo -ne "$DARK_GRAY\u2588\u2588$DEFAULT";
+					else
+						echo -ne "$DARK\u2588\u2588$DEFAULT";
+					fi
+					BACKGROUND_FLIP=false;
+				else
+					BACKGROUND_FLIP=true;
+					DOUBLE_INDENT=false;
+					histogram_indent;
+					DOUBLE_INDENT=true;
+				fi
+			fi
+		done
+		echo;
+	done
+
+	# write x-axis
+	histogram_indent;
+	#histogram_indent;
+	printf "%0.s-" $(seq 1 $(expr $cycles_count / $PERIOD_LENGTH \* 6)); echo "> cycles";
+
+	# write cycle numbers under x-axis
+	histogram_indent;
+	#histogram_indent;
+	DAY_COUNTER=0;
+	for cycle_index in $(seq 1 $(expr $cycle_number - $first_cycle + 1)); do
+		CYCLE_MAP=$(head -n $cycle_index $cycle_map_file | tail -n1);
+		CYCLE_NUMBER=$(echo $CYCLE_MAP | cut -d':' -f1);
+
+		if [ $PERIOD_LENGTH -gt 1 ] && [ $(expr $cycles_count % $PERIOD_LENGTH) -gt 0 ]; then
+			continue;
+		fi
+		printf " C%-5s" $CYCLE_NUMBER;
+	done
+	echo
+
+	# write cycle days under x-axis
+	echo -ne "$LIGHT_VIOLET$(date +%b): $DEFAULT";
+	DAY_COUNTER=0;
+	for cycle_index in $(seq 1 $(expr $cycle_number - $first_cycle + 1)); do
+		CYCLE_MAP=$(head -n $cycle_index $cycle_map_file | tail -n1);
+		CYCLE_NUMBER=$(echo $CYCLE_MAP | cut -d':' -f1);
+		CYCLE_LENGTH=$(echo $CYCLE_MAP | cut -d':' -f1);
+		CYCLE_FIRST_DAY=$(echo $CYCLE_MAP | cut -d':' -f3);
+		CYCLE_LAST_DAY=$(echo $CYCLE_MAP | cut -d':' -f4);
+
+		if [ $PERIOD_LENGTH -gt 1 ] && [ $(expr $cycles_count % $PERIOD_LENGTH) -gt 0 ]; then
+			continue;
+		fi
+		if test "$CYCLE_LAST_DAY" == "future"; then
+			echo -ne $VIOLET
+			if [ $(date -d "$CYCLE_FIRST_DAY" +%d) -eq $(date +%d) ]; then
+				printf "Today";
+			else
+				printf "%-7s" "$(date -d $CYCLE_FIRST_DAY +%d)-Now";
+			fi;
+			echo -ne $DEFAULT
+		else
+			echo -ne $VIOLET
+			printf "%-7s" "$(date -d $CYCLE_FIRST_DAY +%d)-$(date -d $CYCLE_LAST_DAY +%d)";
+			echo -ne $DEFAULT
+		fi;
+	done
+
+else # not practical histogram
+	echo -e $CYAN"Day-Progress Histogram"$DEFAULT; echo;
+
+	# start graph
+	echo "done";
+	echo -e "   \u28c";
+	echo "   |";
+
+	# number of practices
+	grep -v "#" $source_file | uniq | sed '/^$/d' | nl > /tmp/milestone/$(echo $(whoami))-practice-list.tmp;
+	grep -E "^#" $source_file | sed 's/^#//' | uniq | sed '/^$/d' | nl > /tmp/milestone/$(echo $(whoami))-task-list.tmp;
+	PRACTICE_COUNT=$(cat /tmp/milestone/$(echo $(whoami))-practice-list.tmp | tail -n1 | cut -f1 | xargs)
+	TASK_COUNT=$(cat /tmp/milestone/$(echo $(whoami))-task-list.tmp | tail -n1 | cut -f1 | xargs)
+	#TOTAL_COUNT=$(expr $PRACTICE_COUNT + $TASK_COUNT);
+	TOTAL_COUNT=$PRACTICE_COUNT;
+
+	# squeeze histogram
+	PERIOD_LENGTH=$(expr $TOTAL_COUNT / $MAX_X_AXIS_LENGTH + 1);
+	PERIOD_TASK_DONE=0;
+
+	MAX_PROGRESS_IN_MONTH=0;
+	# create a day-done map file
+	while read HISTORY_FILE; do
+		DONE_COUNT=$(grep -o "\-\-  $PRACTICE_TITLE" $HISTORY_FILE | wc -l);
+		PRACTICE_FILE=$(echo $HISTORY_FILE | grep -oE "$(date +$PREFERENCE_MONTH\-[0\-9]\*.list)");
+		echo $PRACTICE_FILE $DONE_COUNT >> $practice_map
+		# find maximum progress
+		if [ $DONE_COUNT -gt $MAX_PROGRESS_IN_MONTH ]; then
+			MAX_PROGRESS_IN_MONTH=$DONE_COUNT;
+		fi
+	done <<< $(ls $location/$PREFERENCE_MONTH-??.list | sort)
+
+	# set max progress as top counter because higher values generate useless empty rows
+	TOTAL_COUNT=$MAX_PROGRESS_IN_MONTH;
+	MINIMUM_LIMIT=$MAX_PROGRESS_IN_MONTH;
+
+	for TASK_NUMBER in $(seq $TOTAL_COUNT -1 1); do
+		printf "%2d |" $TASK_NUMBER;
+		# easter egg
+		if $MOJI && [ $TASK_NUMBER -eq 6 ]; then echo -e " $BOLD\u2665\u2665\u2665 love you Moji \u2665\u2665\u2665$DEFAULT"; continue; fi
+
+		# get practice title
+		PRACTICE_TITLE=$(grep -E "^\ *$TASK_NUMBER[^0-9]" /tmp/milestone/$(echo $(whoami))-practice-list.tmp | cut -f2);
+
+		# squeeze histogram
+		PERIOD_LENGTH=$(expr $DAYS_COUNT / $MAX_X_AXIS_LENGTH + 1);
+		PERIOD_TASK_DONE=0;
+
+		# plot
+		FIRST_HISTO_DAY=true;
+		BACKGROUND_FLIP=false;
+		for DAY_INDEX in $(seq 1 $DAYS_COUNT); do
+			HISTORY_FILE=$(head -n $DAY_INDEX $practice_map | tail -n1);
+			FILENAME=$(echo $HISTORY_FILE | cut -d' ' -f1);
+			DONE_COUNT=$(echo $HISTORY_FILE | cut -d' ' -f2);
+			if [ $PERIOD_LENGTH -gt 0 ]; then PERIOD_TASK_DONE=$(expr $DONE_COUNT + $PERIOD_TASK_DONE); fi
+
+			# sequeezer
+			if [ $(expr $DAY_INDEX % $PERIOD_LENGTH) -ne 0 ]; then
+				continue;
+			else
+				DONE_COUNT=$(expr $PERIOD_TASK_DONE / $PERIOD_LENGTH);
+				PERIOD_TASK_DONE=0;
+			fi
+
+			histogram_indent;
+			if [ $DONE_COUNT -gt 0 ] && [ $DONE_COUNT -ge $TASK_NUMBER ]; then
+				echo -ne "$BLUE\u2588\u2588$DEFAULT";
+				if $BACKGROUND_FLIP; then BACKGROUND_FLIP=false; else BACKGROUND_FLIP=true; fi
+			else
+				if $COLORED && $EASY_READ; then
+					if [ $(expr $TASK_NUMBER % 2) -gt 0 ]; then
+						echo -ne "$DARK_GRAY\u2588\u2588$DEFAULT";
+					else
+						echo -ne "$DARK\u2588\u2588$DEFAULT";
+					fi
+					BACKGROUND_FLIP=false;
+				else
+					BACKGROUND_FLIP=true;
+					histogram_indent;
+				fi
+			fi
+		done
+		echo
+	done
+
+	# write x-axis
+	histogram_indent;
+	histogram_indent;
+	printf "%0.s-" $(seq 1 $(expr $DAYS_COUNT / $PERIOD_LENGTH \* 4)); echo "> days";
+
+	# write day numbers under x-axis
+	histogram_indent;
+	histogram_indent;
+	DAY_COUNTER=0;
+	for DAY_INDEX in $(seq 1 $DAYS_COUNT); do
+		HISTORY_FILE=$(head -n $DAY_INDEX $practice_map | tail -n1);
+		FILENAME=$(echo $HISTORY_FILE | cut -d' ' -f1);
+		DONE_COUNT=$(echo $HISTORY_FILE | cut -d' ' -f2);
+		DAY_NUMBER=$(echo $FILENAME | sed -r 's/[0-9]*-[0-9]*-([0-9]*)\.list/\1/');
+		if [ $PERIOD_LENGTH -gt 1 ] && [ $(expr $DAY_COUNTER % $PERIOD_LENGTH) -gt 0 ]; then
+			DAY_COUNTER=$(expr $DAY_COUNTER + 1);
+			continue;
+		fi
+		printf " %2s " $DAY_NUMBER;
+		DAY_COUNTER=$(expr $DAY_COUNTER + 1);
+	done
+
+fi # practical histogram if
+echo;
+}
+
+update_script() {
+	echo -e "upgrading milestone, please wait!";
+	cd /tmp
+	if test -d milestone; then rm -rf milestone; fi
+	echo -e "downloading source";
+	git clone --depth 1 https://github.com/briansalehi/milestone.git &>/dev/null
+	if [ $? -ne 0 ]; then echo -e $BOLD"failed to download the source"$DEFAULT; return; fi
+	cd milestone
+	./configure &>/dev/null
+	make &>/dev/null
+	if [ $? -eq 0 ]; then
+		echo -e $GREEN"upgrade complete"$DEFAULT;
+		exec $(which practices) -V
+	else
+		echo -e $BOLD"failed to upgrade"$DEFAULT;
+	fi
+}
+
+check_update() {
+	ping -W1 -c1 8.8.8.8 &>/dev/null
+	if [ $? -ne 0 ]; then echo -e $BOLD"no network connection"$DEFAULT; return; echo -e $GREEN"connected to network"$DEFAULT; fi
+	latest_version=$(curl -s https://github.com/briansalehi/milestone/tags 2>/dev/null | grep "/briansalehi/milestone/releases/tag/" | sed -r 's/^.*\/(.*)\">/\1/' | sort -r | head -n1)
+	current_major=$(echo $current_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\1/')
+	current_minor=$(echo $current_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\2/')
+	current_patch=$(echo $current_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\3/')
+	latest_major=$(echo $latest_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\1/')
+	latest_minor=$(echo $latest_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\2/')
+	latest_patch=$(echo $latest_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\3/')
+	if [ $current_major -lt $latest_major ]; then update_script;
+	elif [ $current_minor -lt $latest_minor ] && [ $current_major -eq $latest_major ]; then update_script;
+	elif [ $current_patch -lt $latest_patch ] && [ $current_major -eq $latest_major ] && [ $current_minor -eq $latest_minor ]; then update_script;
+	else echo -e $GREEN"milestone already on latest release"$DEFAULT;
+	fi
+}
+
+uninstall_script() {
+	# remove configuration files
+	echo "backing up ~/.bashrc to ~/.bashbk"
+	cp ~/.bashrc ~/.bashbk
+	sed -i '/.*practices -z$/d' ~/.bashrc;
+	if [ $(grep -Eo "export\ PATH\=.*\/.local\/bin" ~/.bashrc | wc -l) -gt 0 ]; then
+		sed -i '/^export\ PATH\=.*\.local\/bin$/d' ~/.bashrc;
+	fi
+	echo "current PATH variable:";
+	echo $PATH;
+	PATH=$(echo $PATH | sed s,\:$HOME\/\.local\/bin,,);
+	echo "new PATH variable:";
+	echo $PATH;
+	echo -e $BOLD"Milestone removed, changes will affect after next shell restart"$DEFAULT;
+	echo -e "#!/bin/bash\nsleep 1;rm -f ~/.local/bin/practices;" > /tmp/milestone/milestone-remover.sh
+	chmod +x /tmp/milestone/milestone-remover.sh
+	exec /bin/bash /tmp/milestone/milestone-remover.sh &
+	exit
+}
+
+sanity_check() {
+	# garbage files storage
+	if ! [ -d /tmp/milestone/ ]; then
+		mkdir /tmp/milestone;
+	fi
+
+	# check if practices directoriy exists
+	if ! [ -d $location ]; then
+		mkdir -p $location;
+	fi
+
+	# check practice file
+	if ! [ -f $source_file ]; then
+		echo -e $BOLD"practice source does not exist, creating one."$DEFAULT;
+		touch $source_file
+		if [ $? -eq 0 ]; then
+			echo -e $GREEN"~/.practices$DEFAULT file created";
+		else
+			echo -e $BOLD"failed to create $source_file"$DEFAULT;
+		fi
+	fi
+}
+
+# splits cycle into rings
+# ring_file should be set properly before call
+make_ring() {
+	while read practice; do
+		practice_number=$(echo "$practice" | cut -d'	' -f1 | sed -r 's/^.*[^0-9]([0-9]*)$/\1/');
+		practice_title=$(echo "$practice" | cut -d'	' -f2);
+		ring_number=$(grep -B1 -E "^$practice_title" $source_file | head -n1 | tr -d '#' | cut -d' ' -f1);
+		ring_file=cycle$cycle_number\_ring$ring_number\_$cycle_start_time\_$cycle_end_time.list
+
+		# make only specified ring, or make all rings
+		# this might seem that the same thing always runs but it's not, think about it!
+		if [ $# -eq 1 ] && [ $1 -eq $ring_number ]; then 
+			printf "%6s\t%s\n" "$practice_number" "$practice_title" >> $location/$ring_file
+		elif [ $# -eq 0 ]; then
+			printf "%6s\t%s\n" "$practice_number" "$practice_title" >> $location/$ring_file
+		fi
+	done < $location/$practice_file
+	if [ $? -ne 0 ]; then
+		echo -e $BOLD"failed to create ring $ring_number"$DEFAULT
+	fi
+}
+
+update_ring_list() {
+	ring_list=$(find $location -type f -name "cycle$cycle_number\_ring*_future.list" -exec basename {} \; | sort | xargs);
+	
+}
+
+reorder_cycle() {
+while read practice; do
+	practice_number=$(echo "$practice" | cut -d'	' -f1 | sed -r 's/^.*[^0-9]([0-9]*)$/\1/');
+	practice_title=$(echo "$practice" | cut -d'	' -f2);
+	ring_number=$(grep -B1 -E "^$practice_title" $source_file | head -n1 | tr -d '#' | cut -d' ' -f1);
+	ring_file=cycle$cycle_number\_ring$ring_number\_$cycle_start_time\_$cycle_end_time.list;
+	ring_list_with_path=$(echo $ring_list | tr ' ' '\n' | sed s,^,$location\/, | xargs);
+	record=$(grep -H "$practice_title" $ring_list_with_path);
+	record_state=$(echo $record | cut -d':' -f2 | cut -d' ' -f1);
+	if test "$record_state" == "--"; then practice_done=true; else practice_done=false; fi
+	record_file=$(echo $record | cut -d':' -f1);
+	new_record=
+
+	if [ $(grep -o "$practice_title" $location/$ring_file | wc -l) -ne 1 ]; then
+		sed -i "/$practice_title/d" $record_file;
+		if [ $? -ne 0 ]; then echo -e $BOLD"failed to remove practice"$DEFAULT; fi
+		if $practice_done; then
+			new_record=$(printf "%s%4s\t%s" "--" $practice_number "$practice_title");
+		else
+			new_record=$(printf "%6s\t%s" $practice_number "$practice_title");
+		fi
+		cp $location/$ring_file /tmp/ring.tmp
+		echo "$new_record" >> /tmp/ring.tmp
+		new_index=$(sed 's/^--/  /' /tmp/ring.tmp | sort -n | nl | grep "$practice_title" | cut -d'	' -f1 | xargs);
+		source_length=$(wc -l $location/$ring_file | cut -d' ' -f1);
+		if [ $new_index -gt $source_length ]; then
+			echo "$new_record" >> $location/$ring_file;
+		else
+			sed -i "$new_index i \"$new_record" $location/$ring_file;
+		fi
+		if [ $? -ne 0 ]; then echo -e $BOLD"failed to move practice"$DEFAULT; fi
+		sed -i 's/^\"//' $location/$ring_file;
+	fi
+done < $location/$cycle_file;
+}
+
+make_cycle() {
+# load latest cycle
+latest_cycle=$(find $location -type f -name "cycle*.list" -exec basename {} \; | grep -v ring | sort | tail -n1);
+if [ -f "$location/$latest_cycle" ]; then
+	cycle_file=$latest_cycle;
+	cycle_done_count=$(grep -E "^--" $location/$cycle_file | wc -l);
+	cycle_total_tasks=$(wc -l $location/$cycle_file | cut -d' ' -f1);
+	cycle_number=$(echo $cycle_file | sed -r 's/^.*cycle([0-9]*).*\.list$/\1/');
+	cycle_start_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\1/');
+	cycle_end_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\2/');
+	update_ring_list;
+
+	# cycle is complete, make another
+	if [ $cycle_done_count -eq $cycle_total_tasks ]; then
+		# close cycle
+		sync_time;
+		echo -e $BOLD"closing cycle $cycle_number$DEFAULT"
+		mv $location/cycle$cycle_number\_$cycle_start_time\_future.list $location/cycle$cycle_number\_$cycle_start_time\_$now.list;
+
+		# close rings
+		for ring in $ring_list; do
+			ring_number=$(echo $ring | sed -r 's/.*ring([0-9]*).*/\1/');
+			ring_start_time=$(echo $ring | sed -r 's/^.*ring[0-9]*_(.*)_(.*)\.list$/\1/');
+			ring_end_time=$(echo $ring | sed -r 's/^.*ring[0-9]*_(.*)_(.*)\.list$/\2/');
+			echo -e $BOLD"closing ring $ring_number$DEFAULT";
+			mv $location/$ring $location/cycle$cycle_number\_ring$ring_number\_$ring_start_time\_$now.list
+		done
+
+		# migrate to next cycle
+		((cycle_number++));
+		echo -e $BOLD"making cycle $cycle_number"$DEFAULT;
+		sync_time;
+		cycle_file=cycle$cycle_number\_$now\_future.list;
+		cycle_number=$(echo $cycle_file | sed -r 's/^.*cycle([0-9]*).*\.list$/\1/');
+		cycle_start_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\1/');
+		cycle_end_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\2/');
+		ring_file=cycle$cycle_number\_ring$ring_number\_$cycle_start_time\_$cycle_end_time.list
+
+		grep -E "^[^#]" $source_file | sort | nl > $location/$cycle_file
+
+		echo -e $BOLD"making new ring set for cycle $cycle_number"$DEFAULT;
+		make_ring;
+		update_ring_list;
+	fi
+
+	# if ring does not exist, set ring name as now
+	if test -z "$ring_list"; then
+		echo -e $BOLD"making new ring set"$DEFAULT;
+		cycle_number=$(echo $cycle_file | sed -r 's/^.*cycle([0-9]*).*\.list$/\1/');
+		cycle_start_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\1/');
+		cycle_end_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\2/');
+		ring_number=1
+		ring_file=cycle$cycle_number\_ring$ring_number\_$cycle_start_time\_$cycle_end_time.list
+		ring_list=$ring_file
+		make_ring
+		update_ring_list;
+	fi
+
+	# will pass if no ring exists yet
+	for ring_file in $ring_list; do
+		ring_number=$(echo $ring_file | sed -r 's/.*ring([0-9]*).*/\1/');
+		ring_done_count=$(grep -E "^--" $location/$ring_file | wc -l);
+		ring_total_tasks=$(wc -l $location/$ring_file | cut -d' ' -f1);
+
+		# if ring is complete, start over
+		if [ $ring_done_count -eq $ring_total_tasks ]; then
+			# close ring
+			ring_start_time=$(echo $ring_file | sed -r 's/^.*ring[0-9]*_(.*)_(.*).list$/\1/');
+			ring_end_time=$(echo $ring_file | sed -r 's/^.*ring[0-9]*_(.*)_(.*).list$/\2/');
+			sync_time;
+			echo -e $BOLD"closing ring $ring_number"$DEFAULT;
+			mv $location/$ring_file $location/cycle$cycle_number\_ring$ring_number\_$ring_start_time\_$now.list
+
+			ring_file=cycle$cycle_number\_ring$ring_number\_$now\_future.list
+			make_ring $ring_number;
+			update_ring_list;
+		fi
+	done
+
+else # no cycle exists at all
+	echo -e $BOLD"cycle file not found! making first cycle."$DEFAULT;
+	sync_time;
+	cycle_number=1;
+	cycle_start_time=$now;
+	cycle_end_time=future;
+	cycle_file=cycle$cycle_number\_$cycle_start_time\_$cycle_end_time.list;
+	grep -E "^[^#]" $source_file | sort | nl > $location/$cycle_file;
+	make_ring;
+	update_ring_list;
+fi
+}
+
+daily_practice() {
+while IFS= read line
+do
+	linedepth=$(echo "$line" | grep -o "	" | wc -l)
+	nextline=$(grep -A1 "$line" $practice_tree | tail -n1)
+	nextdepth=$(echo "$nextline" | grep -o '	' | wc -l)
+	topic=$(echo "$line" | grep -oE "^\#\#" | wc -l)
+	nexttopic=$(echo $nextline | grep -oE "^\#\#" | wc -l)
+
+	if ! $DEFAULT
+	then
+	echo
+	echo "$line"
+	echo "topic: $topic"
+	echo "next topic: $nexttopic"
+	echo
+	continue
+	fi
+
+	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]
+	then
+		continue
+	elif [ $topic -eq 1 ] && [ $nexttopic -eq 0 ]
+	then
+		echo "$line" | tr -d '##'
+	elif [ $topic -eq 0 ]
+	then
+		if [ $nextdepth -gt $linedepth ]
+		then
+			echo -e "\t$line"
+		elif [ $nextdepth -le $linedepth ]
+		then
+			echo -en "\t$BOLD$line$DEFAULT"
+			read input < /dev/tty
+		fi
+	fi
+done < $practice_tree
+}
+
+parse_option() {
+	case $1 in
+	"-h"|"--help")
+		ACTIVITY_OPTIONS=true;
+		usage;
+		return;
+		;;
+	"-d"|"--mark-done")
+		ACTIVITY_OPTIONS=true;
+		PAIR_OPTION=true;
+		MARK_DONE=true;
+		MARK_VALUE=$option_value;
+		;;
+	"-d+")
+		ACTIVITY_OPTIONS=true;
+		PAIR_OPTION=true;
+		MARK_DONE=true;
+		MARK_VALUE=$option_value;
+		INCREMENT_PROGRESS=true;
+		;;
+	"-D-")
+		ACTIVITY_OPTIONS=true;
+		PAIR_OPTION=true;
+		MARK_NOT_DONE=true;
+		MARK_NOT_VALUE=$option_value;
+		DECREMENT_PROGRESS=true;
+		;;
+	"-D"|"--mark-not-done")
+		ACTIVITY_OPTIONS=true;
+		PAIR_OPTION=true;
+		MARK_NOT_DONE=true;
+		MARK_NOT_VALUE=$option_value;
+		;;
+	"--reset")
+		ACTIVITY_OPTIONS=true;
+		RESET_OPTION=true;
+		;;
+	"--reorder")
+		ACTIVITY_OPTIONS=true;
+		REORDER_OPTION=true;
+		;;
+	"-p"|"--practices")
+		ACTIVITY_OPTIONS=true;
+		PRACTICES_OPTION=true;
+		;;
+	"-P"|"--preference")
+		PAIR_OPTION=true;
+		PREFERENCE_OPTION=true;
+		PREFERENCE_VALUE=$option_value;
+		;;
+	"-v"|"--version")
+		ACTIVITY_OPTIONS=true;
+		echo $current_version;
+		return;
+		;;
+	"-u"|"--update")
+		ACTIVITY_OPTIONS=true;
+		CHECK_UPDATE_OPTION=true;
+		;;
+	"--uninstall")
+		ACTIVITY_OPTIONS=true;
+		UNINSTALL_OPTION=true;
+		return;
+		;;
+	*)
+		ACTIVITY_OPTIONS=true;
+		usage;
+		exit
+		;;
+	esac
+}
+
+if [ $# -eq 0 ]; then
+	REPRESENT_OPTION=true;
+else
+option_value="";
+while [ $# -gt 0 ]; do
+	# treat option as if it requires value; only options that specify PAIR_OPTION; aka. -d 11
+	if $PAIR_OPTION; then
+		PAIR_OPTION=false; shift; continue;
+	fi
+
+	# if option is not long then treat as short joint options; aka. -d11
+	if [ $(echo $1 | grep -Eo "^\-[a-zA-Z][a-zA-Z0-9].*$" | wc -l | cut -d' ' -f1) -gt 0 ]; then
+		script_option=$(echo $1 | sed 's/^\-//');
+		option_length=$(echo $script_option | wc -c);
+		option_length=$(expr $option_length - 2);
+
+		for option_index in $(seq 0 $option_length); do
+			option_letter=$(echo ${script_option:$option_index:1});
+
+			if $PAIR_OPTION; then
+				if [ $(echo $option_letter | grep -Eo "^[0-9]$" | wc -l) -gt 0 ]; then
+					option_value="$(echo $option_value$option_letter)";
+					if [ $option_index -eq $option_length ]; then
+						PAIR_OPTION=false;
+						shift;
+					else
+						shift; continue;
+					fi
+				fi
+				PAIR_OPTION=false;
+
+				parse_option "-${script_option:0:1}" "$option_value";
+			else
+				parse_option "-${script_option:$option_index:1}" "$option_value";
+				option_value=""
+			fi
+			((option_letter++)); # increment the pointer to next option character
+		done # done shifting between option characters (multiple options)
+	else # aka. --mark-done 11
+		option_value=$2;
+		parse_option $1 $option_value;
+	fi
+	shift
+done # done shifting between arguments
+fi
+
+sanity_check
+make_practice
+make_cycle
+
+if $PREFERENCE_OPTION; then
+	if test -n "$PREFERENCE_VALUE"; then
+		# check date
+		PRACTICE_DATE=$(date +%Y-%m-%d -d "$PREFERENCE_VALUE");
+		PREFERENCE_MONTH=$(date +%Y-%m -d "$PREFERENCE_VALUE");
+		if [ $? -ne 0 ]; then exit; fi
+		practice_file=$PRACTICE_DATE.list;
+	else
+		echo -e $BOLD"date not specified"$DEFAULT;
+	fi
+fi
+
+if $CICLE_REPRESENTATION_OPTION && $ACTIVITY_OPTIONS; then
+	show_cycle;
+fi
+
+if $REPRESENT_OPTION || ! $ACTIVITY_OPTIONS; then
+	if $DISABLED_OPTION; then
+		show_disabled_goals;
+	elif $DAILY_REPORT; then
+		represent;
+	else
+		show_cycle;
+	fi
+fi
+
+if $SQUEEZE_OPTION; then
+	DISPLAY_WIDTH=$(expr $DISPLAY_WIDTH / $SQUEEZE_VALUE);
+fi
+
+if $PRACTICES_OPTION; then
+	daily_practice;
+fi
+
+if $INSPECT_OPTION; then
+	if test -n "$INSPECT_VALUE"; then
+		INDICATOR=$INSPECT_VALUE;
+		INSPECT=true;
+	else
+		echo -e $BOLD"practice number needed to inspect but not given"$DEFAULT;
+	fi
+fi
+
+if $MARK_DONE; then
+	make_practice;
+	if test -n "$MARK_VALUE"; then
+		mark_done $MARK_VALUE;
+	else
+		echo "practice number not specified";
+	fi
+fi
+
+if $MARK_NOT_DONE; then
+	make_practice;
+	if test -n "$MARK_NOT_VALUE"; then
+		mark_not_done $MARK_NOT_VALUE;
+	else
+		echo "practice number not specified";
+	fi
+fi
+
+if $RESET_OPTION; then
+	rm $location/$practice_file;
+	if $FORCE_RESET; then
+		grep -E "^[^#]" $source_file | sort | nl > $location/cycle$cycle_number\_$(date +%F)\_future.list;
+	fi
+	make_practice;
+fi
+
+if $VERBOSE_OPTION; then
+	make_practice;
+	represent;
+	echo;
+	show_task;
+fi
+
+if $SHOW_HISTOGRAM; then
+	PERIODICAL_HISTOGRAM=true;
+	if $DAILY_REPORT; then PERIODICAL_HISTOGRAM=false; fi
+	analyze;
+fi
+
+if $CHECK_UPDATE_OPTION; then
+	if $FORCE_UPDATE; then
+		update_script
+	else
+		check_update
+	fi
+fi
+
+if $UNINSTALL_OPTION; then
+	echo -ne $BOLD"Are you sure you want to remove milestone? "$DEFAULT;
+	read response;
+	if test "$response" = "y" || test "$response" = "yes"; then
+		echo -ne $BOLD"Are you really sure? "$DEFAULT;
+		read response2;
+		if test "$response2" = "y" || test "$response2" = "yes"; then
+			uninstall_script
+		fi
+	fi
+fi
+
+if $REORDER_OPTION; then
+	reorder_cycle;
+fi
+
+# TODO:
+# array of practice numbers for marking
+# manage tasks (undone goals) and separate them from practices (done goals)
+# link goals and get practices automatically based on goals
+# progress based on time spent, not only practice count
+# monthly report over practices count and time
