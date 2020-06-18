@@ -1006,10 +1006,9 @@ fi
 daily_practice() {
 while IFS= read -r line
 do
-	line=$(echo "$line" | sed -e 's/\[/\\\[/g' -e 's/(/\(/g');
-	linedepth=$(echo "$line" | grep -o "	" | wc -l)
-	nextline=$(grep -A1 "$line" $practice_tree | tail -n1)
-	nextdepth=$(echo "$nextline" | grep -oE '^	*' | wc -l)
+	linedepth=$(echo "$line" | grep -oP "\t" | wc -l)
+	nextline=$(grep -A1 -E "^$line$" $practice_tree 2>/dev/null | sed 1d)
+	nextdepth=$(echo "$nextline" | grep -oP "\t" | wc -l)
 	topic=$(echo "$line" | grep -oE "^\#\#" | wc -l)
 	nexttopic=$(echo $nextline | grep -oE "^\#\#" | wc -l)
 
@@ -1030,7 +1029,8 @@ do
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
 			echo -en "\t$BOLD$line$DEFAULT"
-			read input < /dev/tty
+			#read input < /dev/tty
+			echo
 		fi
 	fi
 done < $practice_tree
