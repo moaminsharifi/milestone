@@ -62,6 +62,7 @@ ring_list=
 INCREMENT_PROGRESS=false;
 DECREMENT_PROGRESS=false;
 PRACTICES_OPTION=false;
+DEBUG=false
 
 # color codes
 DARK="\e[30m"
@@ -1003,11 +1004,12 @@ fi
 }
 
 daily_practice() {
-while IFS= read line
+while IFS= read -r line
 do
+	line=$(echo "$line" | sed -e 's/\[/\\\[/g' -e 's/(/\(/g');
 	linedepth=$(echo "$line" | grep -o "	" | wc -l)
 	nextline=$(grep -A1 "$line" $practice_tree | tail -n1)
-	nextdepth=$(echo "$nextline" | grep -o '	' | wc -l)
+	nextdepth=$(echo "$nextline" | grep -oE '^	*' | wc -l)
 	topic=$(echo "$line" | grep -oE "^\#\#" | wc -l)
 	nexttopic=$(echo $nextline | grep -oE "^\#\#" | wc -l)
 
@@ -1016,14 +1018,17 @@ do
 		continue
 	elif [ $topic -eq 1 ] && [ $nexttopic -eq 0 ]
 	then
-		echo "$line" | tr -d '##'
+		if $DEBUG; then echo -n $linedepth $nextdepth; fi
+		echo -e $LIGHT_BLUE"$line"$DEFAULT | tr -d '##'
 	elif [ $topic -eq 0 ]
 	then
 		if [ $nextdepth -gt $linedepth ]
 		then
+			if $DEBUG; then echo -n $linedepth $nextdepth; fi
 			echo -e "\t$line"
 		elif [ $nextdepth -le $linedepth ]
 		then
+			if $DEBUG; then echo -n $linedepth $nextdepth; fi
 			echo -en "\t$BOLD$line$DEFAULT"
 			read input < /dev/tty
 		fi
@@ -1094,6 +1099,9 @@ parse_option() {
 		ACTIVITY_OPTIONS=true;
 		UNINSTALL_OPTION=true;
 		return;
+		;;
+	"--debug")
+		DEBUG=true;
 		;;
 	*)
 		ACTIVITY_OPTIONS=true;
