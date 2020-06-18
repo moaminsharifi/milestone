@@ -1029,8 +1029,7 @@ do
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
 			echo -en "\t$BOLD$line$DEFAULT"
-			#read input < /dev/tty
-			echo
+			read input < /dev/tty
 		fi
 	fi
 done < $practice_tree
