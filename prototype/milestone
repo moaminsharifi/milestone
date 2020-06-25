@@ -4,6 +4,8 @@ current_version="v0.7.8"
 location=~/.local/share/practices
 source_file=~/.milestone
 practice_tree=~/.practices
+practice_history_file=~/.practice.history
+practice_history_tree=~/.practice.tree
 practice_file=$(date +%F).list
 practice_map=/tmp/milestone/$(echo $(whoami))-practice.map;
 daily_practice_list=/tmp/milestone/$(echo $(whoami))-practice-days.list;
@@ -1004,6 +1006,29 @@ fi
 }
 
 daily_practice() {
+# load from history
+if $RESET_OPTION
+then
+	if [ -f $practice_history_file ]
+	then
+		rm $practice_history_file
+	fi
+	if [ -f $practice_history_tree ]
+	then
+		rm $practice_history_tree
+	fi
+fi
+
+if [ -f $practice_history_file ] && ! $RESET_OPTION; then
+	line_counter=$(cat $practice_history_file);
+	if [ -f $practice_history_tree ]
+	then
+		cat $practice_history_tree
+	fi
+else
+	line_counter=0;
+fi
+
 while IFS= read -r line
 do
 	linedepth=$(echo "$line" | grep -oP "\t" | wc -l)
@@ -1012,19 +1037,42 @@ do
 	topic=$(echo "$line" | grep -oE "^\#\#" | wc -l)
 	nexttopic=$(echo $nextline | grep -oE "^\#\#" | wc -l)
 
+	# make history
+	echo $line_counter > $practice_history_file;
+
+	if [ -f $practice_history_tree ]
+	then
+		historydepth=$(tail -n1 $practice_history_tree | grep -oP "\t" | wc -l);
+		if [ $linedepth -lt $historydepth ]
+		then
+			sed -i "/$(printf "%0.s\t" $(seq 0 $linedepth))/d" $practice_history_tree
+		fi
+	fi
+
+	# same level
 	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]
 	then
+		((++line_counter));
 		continue
+	# next main topic
 	elif [ $topic -eq 1 ] && [ $nexttopic -eq 0 ]
 	then
+		if [ -f $practice_history_tree ]
+		then
+			rm $practice_history_tree
+		fi
+
 		if $DEBUG; then echo -n $linedepth $nextdepth; fi
-		echo -e $LIGHT_BLUE"$line"$DEFAULT | tr -d '##'
+		echo -e $LIGHT_BLUE"$line"$DEFAULT | tr -d '##' | tee -a $practice_history_tree
+	# deeper topic
 	elif [ $topic -eq 0 ]
 	then
+		# next non-zero level topic
 		if [ $nextdepth -gt $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -e "\t$line"
+			echo -e "\t$line" | tee -a $practice_history_tree
+		# deepest topic
 		elif [ $nextdepth -le $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
@@ -1032,7 +1080,13 @@ do
 			read input < /dev/tty
 		fi
 	fi
-done < $practice_tree
+
+	((++line_counter));
+done <<< $(tail -n +$line_counter $practice_tree)
+
+if [ -f $practice_history_file ]; then
+	rm $practice_history_file;
+fi
 }
 
 parse_option() {
