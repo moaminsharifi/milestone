@@ -247,14 +247,16 @@ mark_done() {
 	practice_title=$(echo $record | cut -d':' -f2 | sed 's/^\-\-\ //' | xargs | cut -d' ' -f2- | sed 's/\ *(.*)//');
 
 	if [ $PRACTICE_NUMBER -ge $MIN_NUMBER ] && [ $PRACTICE_NUMBER -le $MAX_NUMBER ]; then
-		if $already_done; then
+		if $already_done && ! $INCREMENT_PROGRESS; then
 			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> as$BOLD done$DEFAULT";
-		else
-			echo -ne "Marking <$LIGHT_YELLOW$practice_title$DEFAULT> as$GREEN done$DEFAULT"
+		elif ! $INCREMENT_PROGRESS; then
+			echo -e "Marking <$LIGHT_YELLOW$practice_title$DEFAULT> as$GREEN done$DEFAULT"
 			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; else echo; fi
 			sed -i -r s,^.*[^0-9]$PRACTICE_NUMBER[^0-9]\(.*\)$,"$(printf "\-\-%4s" $PRACTICE_NUMBER)"\\\t\\\1, $location/$practice_file;
 			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $location/$cycle_file;
 			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $record_file;
+		else
+			echo -e "Marking$GREEN more progress$DEFAULT on <$LIGHT_YELLOW$practice_title$DEFAULT>"
 		fi
 	else
 		echo "Incorrect practice number";
@@ -289,16 +291,18 @@ mark_not_done() {
 	if test "$(echo $record | cut -d':' -f2 | cut -d' ' -f1)" == "--"; then already_done=true; else already_done=false; fi
 
 	if [ $PRACTICE_NUMBER -gt $MIN_NUMBER ] && [ $PRACTICE_NUMBER -le $MAX_NUMBER ]; then
-		if ! $already_done; then
-			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW"$PRACTICE_TITLE"$DEFAULT> as$BOLD not done$DEFAULT";
-		else
-			echo -ne "Marking <$LIGHT_YELLOW"$PRACTICE_TITLE"$DEFAULT> as$BOLD not done$DEFAULT"
+		if ! $already_done && ! $DECREMENT_PROGRESS; then
+			echo -e "Already marked <$LIGHT_YELLOW"$PRACTICE_TITLE"$DEFAULT> as$BOLD not done$DEFAULT";
+		elif ! $DECREMENT_PROGRESS; then
+			echo -e "Marking <$LIGHT_YELLOW"$PRACTICE_TITLE"$DEFAULT> as$BOLD not done$DEFAULT"
 			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; else echo; fi
 			PRACTICE_TITLE=$(echo $PRACTICE_TITLE | sed 's/,/\\,/g');
 			SUBSTITUTION=$(printf "%6s\t" $PRACTICE_NUMBER);
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $location/$practice_file;
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $location/$cycle_file;
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $record_file;
+		else
+			echo -e $BOLD"Rolling back$DEFAULT progress on <$LIGHT_YELLOW"$PRACTICE_TITLE"$DEFAULT>"
 		fi
 	else
 		echo "Incorrect practice number";
