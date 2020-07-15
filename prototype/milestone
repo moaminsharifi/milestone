@@ -1080,7 +1080,8 @@ do
 		elif [ $nextdepth -le $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -en "\t$BOLD$line$DEFAULT"
+			if [ $(echo "$line" | grep -o '\[obsolete' | wc -l) -eq 0 ]; then COLOR=$BOLD; else COLOR=$VIOLET; fi
+			echo -en "\t$COLOR$line$DEFAULT"
 			read input < /dev/tty
 		fi
 	fi
