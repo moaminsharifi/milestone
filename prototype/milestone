@@ -1,7 +1,8 @@
 #!/bin/bash
 
 current_version="v0.7.8"
-location=~/.local/share/practices
+location=~/.local/share/milestone
+practice_location=~/.local/share/practices
 source_file=~/.milestone
 practice_tree=~/.practices
 practice_history_file=~/.practice.history
@@ -65,6 +66,8 @@ INCREMENT_PROGRESS=false;
 DECREMENT_PROGRESS=false;
 PRACTICES_OPTION=false;
 DEBUG=false
+SCORE_OPTION=false;
+VERBOSE_OPTION=false;
 
 # color codes
 DARK="\e[30m"
@@ -101,19 +104,19 @@ usage() {
 	echo
 	echo -e "General Options"
 	echo
-	echo "-h, --help		show help"
-	echo "-p, --practices		begin practicing"
-	echo "-u, --update		update program"
-	echo "-r, --reorder			reorder cycle"
-	echo "-v, --version		show program version"
-	echo "--uninstall		uninstall milestone"
+	echo "-h, --help        show help"
+	echo "-p, --practices   begin practicing"
+	echo "-s, --score       score last practice"
+	echo "-r, --reorder     reorder cycle"
+	echo "-v, --version     show program version"
+	echo "--uninstall       uninstall milestone"
 	echo
 	echo "Editing Options"
 	echo
-	echo "-d <n>			mark as done"
-	echo "-d+ <n>			mark as done and increment progress"
-	echo "-D <n>			mark as not done"
-	echo "-D+ <n>			mark as not done and decrement progress"
+	echo "-d <n>            mark as done"
+	echo "-d+ <n>           mark as done and increment progress"
+	echo "-D <n>            mark as not done"
+	echo "-D+ <n>           mark as not done and decrement progress"
 	echo
 }
 
@@ -1009,6 +1012,33 @@ else # no cycle exists at all
 fi
 }
 
+score_practice() {
+if ! [ -d $practice_location ]; then
+	echo -e $BOLD"practice directory does not exist, creating"$DEFAULT
+	mkdir -p $practice_location
+fi
+
+## remove swap files
+find $practice_location/ -type f -name *~ -exec rm {} \;
+
+# list practice files
+find $practice_location/ -type f ! -executable ! -name *.sh ! -name *.zip | xargs wc -l > /tmp/score.log
+
+if ! $VERBOSE_OPTION && $RESET_OPTION; then
+	backup=$(date +%y-%m-%d_%H-%m-%S)
+	find $practice_location/ -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | zip -r -o $practice_location/$backup.zip -@
+	if [ $? -eq 0 ]; then echo "previous practices backed up"; fi
+	while read file; do rm "$practice_location/$file"; done < /tmp/score.log
+	find $practice_location/ -type f -executable ! -name score.sh -exec rm {} \;
+else
+	if ! $VERBOSE_OPTION && [ -f /tmp/score.log ] && [ $(wc -l /tmp/score.log | cut -d' ' -f1) -gt 1 ]; then
+		grep total /tmp/score.log
+	else
+		cat /tmp/score.log
+	fi
+fi
+}
+
 daily_practice() {
 # load from history
 if $RESET_OPTION
@@ -1132,8 +1162,11 @@ parse_option() {
 		RESET_OPTION=true;
 		;;
 	"-r"|"--reorder")
-		ACTIVITY_OPTIONS=false;
 		REORDER_OPTION=true;
+		;;
+	"-s"|"--score")
+		ACTIVITY_OPTIONS=true;
+		SCORE_OPTION=true;
 		;;
 	"-p"|"--practices")
 		ACTIVITY_OPTIONS=true;
@@ -1149,9 +1182,8 @@ parse_option() {
 		echo $current_version;
 		return;
 		;;
-	"-u"|"--update")
-		ACTIVITY_OPTIONS=true;
-		CHECK_UPDATE_OPTION=true;
+	"--verbose")
+		VERBOSE_OPTION=true;
 		;;
 	"--uninstall")
 		ACTIVITY_OPTIONS=true;
@@ -1231,25 +1263,12 @@ if $PREFERENCE_OPTION; then
 	fi
 fi
 
-if $CICLE_REPRESENTATION_OPTION && $ACTIVITY_OPTIONS; then
-	show_cycle;
-fi
-
-if $REPRESENT_OPTION || ! $ACTIVITY_OPTIONS; then
-	if $DISABLED_OPTION; then
-		show_disabled_goals;
-	elif $DAILY_REPORT; then
-		represent;
-	else
-		show_cycle;
-	fi
-fi
-
 if $SQUEEZE_OPTION; then
 	DISPLAY_WIDTH=$(expr $DISPLAY_WIDTH / $SQUEEZE_VALUE);
 fi
 
 if $PRACTICES_OPTION; then
+	trap "score_practice" SIGINT;
 	daily_practice;
 fi
 
@@ -1280,33 +1299,12 @@ if $MARK_NOT_DONE; then
 	fi
 fi
 
-if $RESET_OPTION; then
+if ! $SCORE_OPTION &&  $RESET_OPTION; then
 	rm $location/$practice_file;
 	if $FORCE_RESET; then
 		grep -E "^[^#]" $source_file | sort | nl > $location/cycle$cycle_number\_$(date +%F)\_future.list;
 	fi
 	make_practice;
-fi
-
-if $VERBOSE_OPTION; then
-	make_practice;
-	represent;
-	echo;
-	show_task;
-fi
-
-if $SHOW_HISTOGRAM; then
-	PERIODICAL_HISTOGRAM=true;
-	if $DAILY_REPORT; then PERIODICAL_HISTOGRAM=false; fi
-	analyze;
-fi
-
-if $CHECK_UPDATE_OPTION; then
-	if $FORCE_UPDATE; then
-		update_script
-	else
-		check_update
-	fi
 fi
 
 if $UNINSTALL_OPTION; then
@@ -1321,8 +1319,26 @@ if $UNINSTALL_OPTION; then
 	fi
 fi
 
+if $SCORE_OPTION; then
+	score_practice;
+fi
+
 if $REORDER_OPTION; then
 	reorder_cycle;
+fi
+
+if $CICLE_REPRESENTATION_OPTION && $ACTIVITY_OPTIONS; then
+	show_cycle;
+fi
+
+if $REPRESENT_OPTION || ! $ACTIVITY_OPTIONS; then
+	if $DISABLED_OPTION; then
+		show_disabled_goals;
+	elif $DAILY_REPORT; then
+		represent;
+	else
+		show_cycle;
+	fi
 fi
 
 # TODO:
