@@ -1032,6 +1032,7 @@ if ! $VERBOSE_OPTION && $RESET_OPTION; then
 	find $practice_location/ -type f -executable ! -name score.sh -exec rm {} \;
 else
 	if ! $VERBOSE_OPTION && [ -f /tmp/score.log ] && [ $(wc -l /tmp/score.log | cut -d' ' -f1) -gt 1 ]; then
+		echo -n "score:"
 		grep total /tmp/score.log
 	else
 		cat /tmp/score.log
@@ -1268,7 +1269,7 @@ if $SQUEEZE_OPTION; then
 fi
 
 if $PRACTICES_OPTION; then
-	trap "score_practice" SIGINT;
+	trap "echo -e '\b\b\n'; score_practice; exit" SIGINT;
 	daily_practice;
 fi
 
