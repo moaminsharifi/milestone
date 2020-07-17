@@ -181,14 +181,14 @@ show_practices() {
 represent() {
 	make_practice;
 	echo -e $CYAN"Daily Progress"$DEFAULT; echo;
-	TOTAL_TASKS=$(cat $location/$practice_file | sed '/^\ *$/d' | grep -v "#" | wc -l);
-	DONE_COUNT=$(grep -o "\-\-" $location/$practice_file | wc -l | cut -d' ' -f1);
+	TOTAL_TASKS=$(cat /tmp/$practice_file | sed '/^\ *$/d' | grep -v "#" | wc -l);
+	DONE_COUNT=$(grep -o "\-\-" /tmp/$practice_file | wc -l | cut -d' ' -f1);
 	MINIMUM_DONE=$(expr $TOTAL_TASKS / 4);
 	MEDIUM_DONE=$(expr $TOTAL_TASKS \* 3 / 5);
 	ESCAPED_DEFAULT="\\\e\[0m";
 	COLOR_OF_DAY=$LIGHT_GREEN;
 
-	show_practices $location/$practice_file
+	show_practices /tmp/$practice_file
 }
 
 show_cycle() {
@@ -255,7 +255,7 @@ mark_done() {
 		elif ! $INCREMENT_PROGRESS; then
 			echo -e "Marking <$LIGHT_YELLOW$practice_title$DEFAULT> as$GREEN done$DEFAULT"
 			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; else echo; fi
-			sed -i -r s,^.*[^0-9]$PRACTICE_NUMBER[^0-9]\(.*\)$,"$(printf "\-\-%4s" $PRACTICE_NUMBER)"\\\t\\\1, $location/$practice_file;
+			sed -i -r s,^.*[^0-9]$PRACTICE_NUMBER[^0-9]\(.*\)$,"$(printf "\-\-%4s" $PRACTICE_NUMBER)"\\\t\\\1, /tmp/$practice_file;
 			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $location/$cycle_file;
 			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $record_file;
 		else
@@ -301,7 +301,7 @@ mark_not_done() {
 			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; else echo; fi
 			PRACTICE_TITLE=$(echo $PRACTICE_TITLE | sed 's/,/\\,/g');
 			SUBSTITUTION=$(printf "%6s\t" $PRACTICE_NUMBER);
-			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $location/$practice_file;
+			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", /tmp/$practice_file;
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $location/$cycle_file;
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $record_file;
 		else
@@ -330,38 +330,36 @@ fi
 
 make_practice() {
 	# check if today's practice file exists
-	if ! [ -f $location/$practice_file ]; then
-		#grep -E "^[^#]" $source_file | sort | sed '/^\ *$/d' | nl -bp^[^#] > $location/$practice_file;
-		#grep -E "^[#][^+!]" $source_file | sort | sed '/^\ *$/d' | nl -bp^[#] >> $location/$practice_file;
+	if ! [ -f /tmp/$practice_file ]; then
 
 		routine_task=false;
-                while read line; do
-                        if [ "$line" == "#!" ]; then
-                                routine_task=true;
-                        elif $routine_task; then
-                                echo -e "$line-!";
-                                routine_task=false;
-                        elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
-                                echo $line;
-                        else continue;
-                        fi;
-                done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > $location/$practice_file;
+		while read line; do
+			if [ "$line" == "#!" ]; then
+					routine_task=true;
+			elif $routine_task; then
+					echo -e "$line-!";
+					routine_task=false;
+			elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
+					echo $line;
+			else continue;
+			fi;
+		done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > /tmp/$practice_file;
 	fi
 
 	# make cycle
 	if ! [ -f $location/$cycle_file ]; then
 		routine_task=false;
-                while read line; do
-                        if [ "$line" == "#!" ]; then
-                                routine_task=true;
-                        elif $routine_task; then
-                                echo -e "$line-!";
-                                routine_task=false;
-                        elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
-                                echo $line;
-                        else continue;
-                        fi;
-                done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > $location/$practice_file;
+		while read line; do
+			if [ "$line" == "#!" ]; then
+					routine_task=true;
+			elif $routine_task; then
+					echo -e "$line-!";
+					routine_task=false;
+			elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
+					echo $line;
+			else continue;
+			fi;
+		done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > /tmp/$practice_file;
 
 	fi
 }
@@ -797,23 +795,6 @@ update_script() {
 	fi
 }
 
-check_update() {
-	ping -W1 -c1 8.8.8.8 &>/dev/null
-	if [ $? -ne 0 ]; then echo -e $BOLD"no network connection"$DEFAULT; return; echo -e $GREEN"connected to network"$DEFAULT; fi
-	latest_version=$(curl -s https://github.com/briansalehi/milestone/tags 2>/dev/null | grep "/briansalehi/milestone/releases/tag/" | sed -r 's/^.*\/(.*)\">/\1/' | sort -r | head -n1)
-	current_major=$(echo $current_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\1/')
-	current_minor=$(echo $current_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\2/')
-	current_patch=$(echo $current_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\3/')
-	latest_major=$(echo $latest_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\1/')
-	latest_minor=$(echo $latest_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\2/')
-	latest_patch=$(echo $latest_version | sed -r 's/^v([0-9]*)\.([0-9]*)\.([0-9]*)/\3/')
-	if [ $current_major -lt $latest_major ]; then update_script;
-	elif [ $current_minor -lt $latest_minor ] && [ $current_major -eq $latest_major ]; then update_script;
-	elif [ $current_patch -lt $latest_patch ] && [ $current_major -eq $latest_major ] && [ $current_minor -eq $latest_minor ]; then update_script;
-	else echo -e $GREEN"milestone already on latest release"$DEFAULT;
-	fi
-}
-
 uninstall_script() {
 	# remove configuration files
 	echo "backing up ~/.bashrc to ~/.bashbk"
@@ -873,7 +854,7 @@ make_ring() {
 		elif [ $# -eq 0 ]; then
 			printf "%6s\t%s\n" "$practice_number" "$practice_title" >> $location/$ring_file
 		fi
-	done < $location/$practice_file
+	done < /tmp/$practice_file
 	if [ $? -ne 0 ]; then
 		echo -e $BOLD"failed to create ring $ring_number"$DEFAULT
 	fi
@@ -958,7 +939,7 @@ if [ -f "$location/$latest_cycle" ]; then
 		cycle_end_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\2/');
 		ring_file=cycle$cycle_number\_ring$ring_number\_$cycle_start_time\_$cycle_end_time.list
 
-		grep -E "^[^#]" $source_file | sort | nl > $location/$cycle_file
+		#grep -E "^[^#]" $source_file | sort | nl > $location/$cycle_file
 
 		echo -e $BOLD"making new ring set for cycle $cycle_number"$DEFAULT;
 		make_ring;
@@ -1301,10 +1282,7 @@ if $MARK_NOT_DONE; then
 fi
 
 if ! $SCORE_OPTION &&  $RESET_OPTION; then
-	rm $location/$practice_file;
-	if $FORCE_RESET; then
-		grep -E "^[^#]" $source_file | sort | nl > $location/cycle$cycle_number\_$(date +%F)\_future.list;
-	fi
+	rm /tmp/$practice_file;
 	make_practice;
 fi
 
