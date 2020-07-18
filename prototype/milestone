@@ -679,8 +679,7 @@ do
 		elif [ $nextdepth -le $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			if [ $(echo "$line" | grep -o '\[obsolete' | wc -l) -eq 0 ]; then COLOR=$BOLD; else COLOR=$VIOLET; fi
-			echo -en "\t$COLOR$line$DEFAULT"
+			echo -en $(tput bold)"\t$line" | sed -r "s/\[([depricated,depricate,obsolete,obsolescence])([^,\n]*)/$(tput dim)\[\1\2$(tput sgr0)$(tput bold)/" && tput sgr0
 			read input < /dev/tty
 		fi
 	fi
