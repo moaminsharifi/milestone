@@ -68,6 +68,8 @@ PRACTICES_OPTION=false;
 DEBUG=false
 SCORE_OPTION=false;
 VERBOSE_OPTION=false;
+LOOKUP_OPTION=false;
+LOOKUP_TEXT=;
 
 # color codes
 DARK="\e[30m"
@@ -105,11 +107,15 @@ usage() {
 	echo -e "General Options"
 	echo
 	echo "-h, --help        show help"
-	echo "-p, --practices   begin practicing"
-	echo "-s, --score       score last practice"
 	echo "-r, --reorder     reorder cycle"
 	echo "-v, --version     show program version"
 	echo "--uninstall       uninstall milestone"
+	echo
+	echo "Practice Options"
+	echo
+	echo "-p, --practices   begin practicing"
+	echo "-l, --lookup      lookup practice title and continue"
+	echo "-s, --score       score last practice"
 	echo
 	echo "Editing Options"
 	echo
@@ -622,7 +628,22 @@ then
 	fi
 fi
 
-if [ -f $practice_history_file ] && ! $RESET_OPTION; then
+if $LOOKUP_OPTION && [ -n "$LOOKUP_TEXT" ]; then
+	match=$(grep -Ei "^##.*$LOOKUP_TEXT.*" $practice_tree)
+	multimatch=$(echo "$match" | grep -o '##' | wc -l)
+
+	if [ $multimatch -gt 1 ]; then
+		echo $(tput bold)"Match ambiguity, choose:"$(tput sgr0)
+		echo "$match" | sed 's/##//' | nl
+		read choice
+		match=$(echo "$match" | awk "NR == $choice")
+	fi
+
+	if [ -n "$match" ]; then
+		line_counter=$(awk "/$match/{ print NR; exit }" $practice_tree)
+	fi
+
+elif [ -f $practice_history_file ] && ! $RESET_OPTION; then
 	line_counter=$(cat $practice_history_file);
 	if [ -f $practice_history_tree ]
 	then
@@ -749,6 +770,11 @@ parse_option() {
 		ACTIVITY_OPTIONS=true;
 		echo $current_version;
 		return;
+		;;
+	"-l"|"--lookup")
+		PAIR_OPTION=true;
+		LOOKUP_OPTION=true;
+		LOOKUP_TEXT=$option_value;
 		;;
 	"--verbose")
 		VERBOSE_OPTION=true;
