@@ -258,34 +258,37 @@ mark_done() {
 	if [ $PRACTICE_NUMBER -ge $MIN_NUMBER ] && [ $PRACTICE_NUMBER -le $MAX_NUMBER ]; then
 		if $already_done && ! $INCREMENT_PROGRESS; then
 			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> as$BOLD done$DEFAULT";
-		elif ! $INCREMENT_PROGRESS; then
-			echo -e "Marking <$LIGHT_YELLOW$practice_title$DEFAULT> as$GREEN done$DEFAULT"
+		else
+			if $INCREMENT_PROGRESS; then
+				echo -e "Marking$GREEN more progress$DEFAULT on <$LIGHT_YELLOW$practice_title$DEFAULT>"
+			else
+				echo -e "Marking <$LIGHT_YELLOW$practice_title$DEFAULT> as$GREEN done$DEFAULT"
+			fi
+
 			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; else echo; fi
 			sed -i -r s,^.*[^0-9]$PRACTICE_NUMBER[^0-9]\(.*\)$,"$(printf "\-\-%4s" $PRACTICE_NUMBER)"\\\t\\\1, /tmp/$practice_file;
 			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $location/$cycle_file;
 			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $record_file;
-		else
-			echo -e "Marking$GREEN more progress$DEFAULT on <$LIGHT_YELLOW$practice_title$DEFAULT>"
+
+			if $INCREMENT_PROGRESS; then
+				practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
+				if test -n "$practice_info"; then
+					practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
+					practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
+					practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
+					if [ "$practice_unit" == "complete" ] || [ $(expr $practice_progress + 1) -gt $practice_total ]; then
+						echo -e "You finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
+						return;
+					fi
+					sed -i -rz "s/$practice_unit\ *$practice_progress\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $(expr $practice_progress + 1)\/$practice_total\1/" $source_file;
+				fi
+			fi
 		fi
 	else
 		echo "Incorrect practice number";
 		return;
 	fi
 
-	## increment progress unit if exists
-if $INCREMENT_PROGRESS; then
-	practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
-	if test -n "$practice_info"; then
-		practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
-		practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
-		practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
-		if [ "$practice_unit" == "complete" ] || [ $(expr $practice_progress + 1) -gt $practice_total ]; then
-			echo -e "You finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
-			return;
-		fi
-		sed -i -rz "s/$practice_unit\ *$practice_progress\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $(expr $practice_progress + 1)\/$practice_total\1/" $source_file;
-	fi
-fi
 }
 
 mark_not_done() {
