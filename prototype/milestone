@@ -589,6 +589,25 @@ else # no cycle exists at all
 fi
 }
 
+backup_practices() {
+	backup=$(date +%y-%m-%d)
+	if [ -f $practice_location/$backup.zip ]; then zip_option="-u"; fi
+	backup_list=$(find $practice_location/ -mindepth 1 -maxdepth 1 -type d)
+	if [ -n "$backup_list" ]; then
+		echo "$backup_list" | zip -q -r $zip_option $practice_location/$backup.zip -@
+		if [ $? -eq 0 ]; then
+			echo -e $GREEN"Previous practices backed up"$DEFAULT;
+			while read line; do filename=$(echo "$line" | cut -d' ' -f2); rm "$filename"; done < /tmp/score.log
+			find $practice_location/ -type f -executable ! -name score.sh -exec rm -f {} \;
+			echo -e $GREEN"Previous practice files removed"$DEFAULT;
+		else
+			echo -e $BOLD"Backup failed!"$DEFAULT;
+		fi
+	else
+		echo -e $BOLD"No practices found to backup"$DEFAULT;
+	fi
+}
+
 score_practice() {
 if ! [ -d $practice_location ]; then
 	echo -e $BOLD"practice directory does not exist, creating"$DEFAULT
@@ -596,23 +615,19 @@ if ! [ -d $practice_location ]; then
 fi
 
 ## remove swap files
-find $practice_location/ -type f -name *~ -exec rm {} \;
+find $practice_location/ -type f -name *~ -exec rm -f {} \;
 
 # list practice files
-find $practice_location/ -type f ! -executable ! -name *.sh ! -name *.zip | xargs wc -l > /tmp/score.log
+find $practice_location/ -type f ! -executable ! -name *.sh ! -name *.zip > /tmp/score.log
 
 if ! $VERBOSE_OPTION && $RESET_OPTION; then
-	backup=$(date +%y-%m-%d_%H-%m-%S)
-	find $practice_location/ -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | zip -r -o $practice_location/$backup.zip -@
-	if [ $? -eq 0 ]; then echo "previous practices backed up"; fi
-	while read file; do rm "$practice_location/$file"; done < /tmp/score.log
-	find $practice_location/ -type f -executable ! -name score.sh -exec rm {} \;
+	backup_practices
 else
 	if ! $VERBOSE_OPTION && [ -f /tmp/score.log ] && [ $(wc -l /tmp/score.log | cut -d' ' -f1) -gt 1 ]; then
 		echo -n "score:"
-		grep total /tmp/score.log
+		wc -l $(cat /tmp/score.log) | grep total
 	else
-		cat /tmp/score.log
+		wc -l $(cat /tmp/score.log)
 	fi
 fi
 }
@@ -864,6 +879,10 @@ if $SQUEEZE_OPTION; then
 	DISPLAY_WIDTH=$(expr $DISPLAY_WIDTH / $SQUEEZE_VALUE);
 fi
 
+if $SCORE_OPTION; then
+	score_practice;
+fi
+
 if $PRACTICES_OPTION; then
 	trap "echo -e '\b\b\n'; score_practice; exit" SIGINT;
 	daily_practice;
@@ -911,10 +930,6 @@ if $UNINSTALL_OPTION; then
 			uninstall_script
 		fi
 	fi
-fi
-
-if $SCORE_OPTION; then
-	score_practice;
 fi
 
 if $REORDER_OPTION; then
