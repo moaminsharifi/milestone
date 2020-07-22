@@ -619,15 +619,18 @@ find $practice_location/ -type f -name *~ -exec rm -f {} \;
 
 # list practice files
 find $practice_location/ -type f ! -executable ! -name *.sh ! -name *.zip > /tmp/score.log
+score_files=$(wc -l /tmp/score.log | cut -d' ' -f1)
 
-if ! $VERBOSE_OPTION && $RESET_OPTION; then
+if $RESET_OPTION; then
 	backup_practices
 else
-	if ! $VERBOSE_OPTION && [ -f /tmp/score.log ] && [ $(wc -l /tmp/score.log | cut -d' ' -f1) -gt 1 ]; then
+	if [ $score_files -eq 0 ]; then
+		echo "score: 0"
+	elif $VERBOSE_OPTION || [ $score_files -eq 1 ]; then
+		wc -l $(cat /tmp/score.log)
+	else
 		echo -n "score:"
 		wc -l $(cat /tmp/score.log) | grep total
-	else
-		wc -l $(cat /tmp/score.log)
 	fi
 fi
 }
