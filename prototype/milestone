@@ -655,18 +655,15 @@ elif [ $score_files -eq 1 ]; then
 	score_file=$(echo $only_score | cut -d' ' -f2-)
 	echo -e $BLUE"Score: $score "$DEFAULT
 	echo -e $BLUE"File: $score_file"$DEFAULT
-	echo
 elif $VERBOSE_OPTION && [ $score_files -gt 1 ]; then
 	echo -ne $BLUE"Score: "
 	wc -l $(cat /tmp/score.log) | grep total
 	echo -e $DEFAULT
 	echo -e $BLUE"Files: "$DEFAULT
 	wc -l $(cat /tmp/score.log)
-	echo
 else
-	echo -ne $BLUE"Score: "
-	wc -l $(cat /tmp/score.log) | grep total
-	echo -e $DEFAULT
+	score=$(wc -l $(cat /tmp/score.log) | grep total)
+	echo -e $BLUE"Score: $score "$DEFAULT
 fi
 }
 
