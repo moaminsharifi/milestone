@@ -631,6 +631,7 @@ zip was compiled with options not supported on this system
 	else
 		echo -e $BOLD"No practices found to backup"$DEFAULT;
 	fi
+	echo;
 }
 
 score_practice() {
@@ -646,17 +647,13 @@ find $practice_location/ -type f -name *~ -exec rm -f {} \;
 find $practice_location/ -type f ! -executable ! -name *.sh ! -name *.zip > /tmp/score.log
 score_files=$(wc -l /tmp/score.log | cut -d' ' -f1)
 
-if $RESET_OPTION; then
-	backup_practices
+if [ $score_files -eq 0 ]; then
+	echo "score: 0"
+elif $VERBOSE_OPTION || [ $score_files -eq 1 ]; then
+	wc -l $(cat /tmp/score.log)
 else
-	if [ $score_files -eq 0 ]; then
-		echo "score: 0"
-	elif $VERBOSE_OPTION || [ $score_files -eq 1 ]; then
-		wc -l $(cat /tmp/score.log)
-	else
-		echo -n "score:"
-		wc -l $(cat /tmp/score.log) | grep total
-	fi
+	echo -n "score:"
+	wc -l $(cat /tmp/score.log) | grep total
 fi
 }
 
@@ -664,6 +661,7 @@ daily_practice() {
 # load from history
 if $RESET_OPTION
 then
+	backup_practices
 	if [ -f $practice_history_file ]
 	then
 		rm $practice_history_file
