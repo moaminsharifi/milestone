@@ -687,10 +687,13 @@ fi
 
 if $LOOKUP_OPTION && [ -n "$LOOKUP_TEXT" ]; then
 	match=$(grep -Ei "^##.*$LOOKUP_TEXT.*" $practice_tree)
-	multimatch=$(echo "$match" | grep -o '##' | wc -l)
+	match_counter=$(echo "$match" | grep -o '##' | wc -l)
 
-	if [ $multimatch -gt 1 ]; then
-		echo $(tput bold)"Match ambiguity, choose:"$(tput sgr0)
+	if [ $match_counter -eq 0 ]; then
+		echo -e $BOLD"No match found for \"$LOOKUP_TEXT\""$DEFAULT
+		return
+	elif [ $match_counter -gt 1 ]; then
+		echo -e $BOLD"Match ambiguity, choose:"$DEFAULT
 		echo "$match" | sed 's/##//' | nl
 		read choice
 		match=$(echo "$match" | awk "NR == $choice")
