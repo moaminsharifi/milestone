@@ -644,7 +644,7 @@ fi
 find $practice_location/ -type f -name *~ -exec rm -f {} \;
 
 # list practice files
-find $practice_location/ -type f ! -executable ! -name *.sh ! -name *.zip ! -name *~ ! -name .*~ ! -name *.swp> /tmp/score.log
+find $practice_location/ -type f ! -executable ! -name *.sh ! -name *.zip ! -name *~ ! -name ".*~" ! -name *.swp> /tmp/score.log
 score_files=$(wc -l /tmp/score.log | cut -d' ' -f1)
 
 if [ $score_files -eq 0 ]; then
@@ -655,12 +655,14 @@ elif [ $score_files -eq 1 ]; then
 	score_file=$(echo $only_score | cut -d' ' -f2-)
 	echo -e $BLUE"Score: $score "$DEFAULT
 	echo -e $BLUE"File: $score_file"$DEFAULT
+	echo
 elif $VERBOSE_OPTION && [ $score_files -gt 1 ]; then
 	echo -ne $BLUE"Score: "
 	wc -l $(cat /tmp/score.log) | grep total
 	echo -e $DEFAULT
 	echo -e $BLUE"Files: "$DEFAULT
 	wc -l $(cat /tmp/score.log)
+	echo
 else
 	echo -ne $BLUE"Score: "
 	wc -l $(cat /tmp/score.log) | grep total
