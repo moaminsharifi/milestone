@@ -590,18 +590,43 @@ fi
 }
 
 backup_practices() {
+zip_errors="""
+unknown zip error
+unexpected end of zip file.
+a  generic error in the zipfile format was detected.  Processing may have completed successfully anyway; some broken zipfiles
+zip was unable to allocate memory for one or more buffers during program initialization.
+a severe error in the zipfile format was detected.  Processing probably failed immediately.
+entry too large to be processed (such as input files larger than 2 GB when not using Zip64 or trying to read an existing  ar‐
+invalid comment format
+zip -T failed or out of memory
+the user aborted zip prematurely with control-C (or similar)
+zip encountered an error while using a temp file
+read or seek error
+zip has nothing to do
+missing or empty zip file
+error writing to a file
+zip was unable to create a file to write to
+bad command line parameters
+zip could not open a specified file to read
+zip was compiled with options not supported on this system
+"""
+
 	backup=$(date +%y-%m-%d)
 	if [ -f $practice_location/$backup.zip ]; then zip_option="-u"; fi
 	backup_list=$(find $practice_location/ -mindepth 1 -maxdepth 1 -type d)
 	if [ -n "$backup_list" ]; then
 		echo "$backup_list" | zip -q -r $zip_option $practice_location/$backup.zip -@
-		if [ $? -eq 0 ]; then
-			echo -e $GREEN"Previous practices backed up"$DEFAULT;
+		ret=$?
+		echo -ne $BLUE"Backing up previous practices: "$DEFAULT
+		if [ $ret -eq 0 ]; then
+			echo -e $GREEN"complete"$DEFAULT;
+			echo -e $GREEN$filename$DEFAULT;
 			while read line; do filename=$(echo "$line" | cut -d' ' -f2); rm "$filename"; done < /tmp/score.log
 			find $practice_location/ -type f -executable ! -name score.sh -exec rm -f {} \;
-			echo -e $GREEN"Previous practice files removed"$DEFAULT;
 		else
-			echo -e $BOLD"Backup failed!"$DEFAULT;
+			((ret++))
+			echo -e $BOLD"failed"$DEFAULT
+			echo -e $BLUE"Reason: "$DEFAULT$BOLD$(echo "$zip_errors" | cut -d: -f2 | awk "NR==$ret");
 		fi
 	else
 		echo -e $BOLD"No practices found to backup"$DEFAULT;
@@ -716,12 +741,12 @@ do
 		if [ $nextdepth -gt $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -e "\t$line" | tee -a $practice_history_tree
+			echo -e "  $line" | tee -a $practice_history_tree
 		# deepest topic
 		elif [ $nextdepth -le $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -en $(tput bold)"\t$line" | sed -r "s/\[([depricated,depricate,obsolete,obsolescence])([^,\n]*)/$(tput dim)\[\1\2$(tput sgr0)$(tput bold)/" && tput sgr0
+			echo -en $(tput bold)"  $line" | sed -r "s/\[([depricated,depricate,obsolete,obsolescence])([^,\n]*)/$(tput dim)\[\1\2$(tput sgr0)$(tput bold)/" && tput sgr0
 			read input < /dev/tty
 		fi
 	fi
