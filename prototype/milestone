@@ -620,7 +620,7 @@ zip was compiled with options not supported on this system
 		echo -ne $BLUE"Backing up previous practices: "$DEFAULT
 		if [ $ret -eq 0 ]; then
 			echo -e $GREEN"complete"$DEFAULT;
-			echo -e $GREEN$filename$DEFAULT;
+			echo -e $GREEN"File: $practice_location/$backup.zip"$DEFAULT;
 			while read line; do filename=$(echo "$line" | cut -d' ' -f2); rm "$filename"; done < /tmp/score.log
 			find $practice_location/ -type f -executable ! -name score.sh -exec rm -f {} \;
 		else
@@ -729,6 +729,7 @@ do
 		fi
 	fi
 
+	line=$(echo "$line" | sed 's/^\t/  /g')
 	# same level
 	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]
 	then
