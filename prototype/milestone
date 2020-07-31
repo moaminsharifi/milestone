@@ -339,38 +339,32 @@ fi
 
 make_practice() {
 	# check if today's practice file exists
-	if ! [ -f /tmp/$practice_file ]; then
-
-		routine_task=false;
-		while read line; do
-			if [ "$line" == "#!" ]; then
-					routine_task=true;
-			elif $routine_task; then
-					echo -e "$line-!";
-					routine_task=false;
-			elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
-					echo $line;
-			else continue;
-			fi;
-		done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > /tmp/$practice_file;
-	fi
+	routine_task=false;
+	while read line; do
+		if [ "$line" == "#!" ]; then
+				routine_task=true;
+		elif $routine_task; then
+				echo -e "$line-!";
+				routine_task=false;
+		elif [ $(echo $line | grep -oE "^[^#][^#+\-]" | wc -l) -gt 0 ]; then
+				echo $line;
+		else continue;
+		fi;
+	done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > /tmp/$practice_file;
 
 	# make cycle
-	if ! [ -f $location/$cycle_file ]; then
-		routine_task=false;
-		while read line; do
-			if [ "$line" == "#!" ]; then
-					routine_task=true;
-			elif $routine_task; then
-					echo -e "$line-!";
-					routine_task=false;
-			elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
-					echo $line;
-			else continue;
-			fi;
-		done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > /tmp/$practice_file;
-
-	fi
+	routine_task=false;
+	while read line; do
+		if [ "$line" == "#!" ]; then
+				routine_task=true;
+		elif $routine_task; then
+				echo -e "$line-!";
+				routine_task=false;
+		elif [ $(echo $line | grep -oE "^[^#][^#+]" | wc -l) -gt 0 ]; then
+				echo $line;
+		else continue;
+		fi;
+	done <<< $(cat $source_file) | sort | nl | sed -r -e "s/^(\ *)(.*)-!$/\1$RED_ESCAPED\\\b!$DEFAULT_ESCAPED\2/" > /tmp/$practice_file;
 }
 
 update_script() {
@@ -436,6 +430,7 @@ sanity_check() {
 
 # splits cycle into rings
 # ring_file should be set properly before call
+# cycle_number, cycle_start_time and cycle_end_time should be set properly
 make_ring() {
 	while read practice; do
 		practice_number=$(echo "$practice" | cut -d'	' -f1 | sed -r 's/^.*[^0-9]([0-9]*)$/\1/');
@@ -462,6 +457,15 @@ update_ring_list() {
 }
 
 reorder_cycle() {
+	echo -e $BLUE"Reordering cycle and rings\n"$DEFAULT
+	cycle_file=$(find $location -type f -name "cycle*.list" -exec basename {} \; | grep -v ring | sort | tail -n1);
+	cycle_start_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\1/');
+	cycle_end_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\2/');
+	update_ring_list
+	make_practice
+
+	cat /tmp/$practice_file | cut -d'     ' -f2 > /tmp/milestone/newlist
+	cat $location/$cycle_file | cut -d'     ' -f2 > /tmp/milestone/oldlist
 while read practice; do
 	practice_number=$(echo "$practice" | cut -d'	' -f1 | sed -r 's/^.*[^0-9]([0-9]*)$/\1/');
 	practice_title=$(echo "$practice" | cut -d'	' -f2);
@@ -474,7 +478,8 @@ while read practice; do
 	record_file=$(echo $record | cut -d':' -f1);
 	new_record=
 
-	if [ $(grep -o "$practice_title" $location/$ring_file | wc -l) -ne 1 ]; then
+	if [ $(grep -o "$practice_title" $location/$cycle_file | wc -l) -ne 1 ]; then
+		echo -e $GREEN"Adding $practice_title"$DEFAULT
 		sed -i "/$practice_title/d" $record_file;
 		if [ $? -ne 0 ]; then echo -e $BOLD"failed to remove practice"$DEFAULT; fi
 		if $practice_done; then
@@ -488,13 +493,16 @@ while read practice; do
 		source_length=$(wc -l $location/$ring_file | cut -d' ' -f1);
 		if [ $new_index -gt $source_length ]; then
 			echo "$new_record" >> $location/$ring_file;
+			echo "$new_record" >> $location/$cycle_file;
 		else
 			sed -i "$new_index i \"$new_record" $location/$ring_file;
+			sed -i "$new_index i \"$new_record" $location/$cycle_file;
 		fi
 		if [ $? -ne 0 ]; then echo -e $BOLD"failed to move practice"$DEFAULT; fi
 		sed -i 's/^\"//' $location/$ring_file;
+		sed -i 's/^\"//' $location/$cycle_file;
 	fi
-done < $location/$cycle_file;
+done < /tmp/$practice_file
 }
 
 make_cycle() {
@@ -612,15 +620,15 @@ zip was compiled with options not supported on this system
 """
 
 	backup=$(date +%y-%m-%d)
-	if [ -f $practice_location/$backup.zip ]; then zip_option="-u"; fi
+	if [ -f $location/$backup.zip ]; then zip_option="-u"; fi
 	backup_list=$(find $practice_location/ -mindepth 1 -maxdepth 1 -type d)
 	if [ -n "$backup_list" ]; then
-		echo "$backup_list" | zip -q -r $zip_option $practice_location/$backup.zip -@
+		echo "$backup_list" | zip -q -r $zip_option $location/$backup.zip -@
 		ret=$?
 		echo -ne $BLUE"Backing up previous practices: "$DEFAULT
 		if [ $ret -eq 0 ]; then
 			echo -e $GREEN"complete"$DEFAULT;
-			echo -e $GREEN"File: $practice_location/$backup.zip"$DEFAULT;
+			echo -e $BLUE"File: $DEFAULT$location/$backup.zip";
 			while read line; do filename=$(echo "$line" | cut -d' ' -f2); rm "$filename"; done < /tmp/score.log
 			find $practice_location/ -type f -executable ! -name score.sh -exec rm -f {} \;
 		else
@@ -703,12 +711,13 @@ elif [ -f $practice_history_file ] && ! $RESET_OPTION; then
 	line_counter=$(cat $practice_history_file);
 	if [ -f $practice_history_tree ]
 	then
-		cat $practice_history_tree
+		sed 's/\t/  /g' $practice_history_tree
 	fi
 else
 	line_counter=0;
 fi
 
+skipped_flag=false
 while IFS= read -r line
 do
 	linedepth=$(echo "$line" | grep -oP "\t" | wc -l)
@@ -716,20 +725,23 @@ do
 	nextdepth=$(echo "$nextline" | grep -oP "\t" | wc -l)
 	topic=$(echo "$line" | grep -oE "^\#\#" | wc -l)
 	nexttopic=$(echo $nextline | grep -oE "^\#\#" | wc -l)
+	line=$(echo "$line" | sed 's/^\t/  /g')
 
 	# make history
 	echo $line_counter > $practice_history_file;
 
 	if [ -f $practice_history_tree ]
 	then
-		historydepth=$(tail -n1 $practice_history_tree | grep -oP "\t" | wc -l);
+		historydepth=$(tail -n1 $practice_history_tree | grep -oP "  " | wc -l);
 		if [ $linedepth -lt $historydepth ]
 		then
-			sed -i "/$(printf "%0.s\t" $(seq 0 $linedepth))/d" $practice_history_tree
+			if $DEBUG; then echo -e $BOLD"***\nremoving lines with depth $linedepth$DEFAULT"; fi
+			if $DEBUG; then sed -n "/$(printf "%0.s\ \ " $(seq 0 $linedepth))/p" $practice_history_tree; fi
+			if $DEBUG; then echo -e $BOLD"***$DEFAULT"; fi
+			sed -i "/$(printf "%0.s\ \ " $(seq 0 $linedepth))/d" $practice_history_tree
 		fi
 	fi
 
-	line=$(echo "$line" | sed 's/^\t/  /g')
 	# same level
 	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]
 	then
@@ -743,7 +755,7 @@ do
 			rm $practice_history_tree
 		fi
 
-		if $DEBUG; then echo -n $linedepth $nextdepth; fi
+		if $DEBUG; then echo -n $linedepth+$nextdepth; fi
 		echo -e $LIGHT_BLUE"$line"$DEFAULT | tr -d '##' | tee -a $practice_history_tree
 	# deeper topic
 	elif [ $topic -eq 0 ]
@@ -751,14 +763,27 @@ do
 		# next non-zero level topic
 		if [ $nextdepth -gt $linedepth ]
 		then
-			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -e "  $line" | tee -a $practice_history_tree
+			if $DEBUG; then echo -n $linedepth+$nextdepth; fi
+			echo -e "  $line" | sed 's/\t/  /g' | tee -a $practice_history_tree
 		# deepest topic
 		elif [ $nextdepth -le $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -en $(tput bold)"  $line" | sed -r "s/\[([depricated,depricate,obsolete,obsolescence])([^,\n]*)/$(tput dim)\[\1\2$(tput sgr0)$(tput bold)/" && tput sgr0
-			read input < /dev/tty
+			echo -en $(tput bold)"  $line" |\
+			   	sed -r -e 's/\t/\ \ /g'\
+				-e "s/(\([^\)]*)\[([depricate,obsolete,obsolescence])([^,\)]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
+				-e "s/([^\(]*)\[([depricate,obsolete,obsolescence])([^\n]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
+				-e "s/(,[^,]*)\[([depricate,obsolete,obsolescence])([^,]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
+				&& tput sgr0
+			if [ $(echo "$line" | grep -Eo ",$" | wc -l) -eq 1 ]; then
+				echo
+				skipped_flag=true
+				continue
+			else
+				if $skipped_flag; then ((++line_counter)); skipped_flag=false; fi
+				if $DEBUG; then echo -n " line: $line_counter"; fi
+				read input < /dev/tty
+			fi
 		fi
 	fi
 
@@ -972,6 +997,7 @@ if $UNINSTALL_OPTION; then
 fi
 
 if $REORDER_OPTION; then
+	make_practice
 	reorder_cycle;
 fi
 
