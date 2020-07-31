@@ -70,6 +70,9 @@ SCORE_OPTION=false;
 VERBOSE_OPTION=false;
 LOOKUP_OPTION=false;
 LOOKUP_TEXT=;
+TABSIZE=4
+TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
+TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
 
 # color codes
 DARK="\e[30m"
@@ -109,6 +112,7 @@ usage() {
 	echo "-h, --help        show help"
 	echo "-r, --reorder     reorder cycle"
 	echo "-v, --version     show program version"
+	echo "--debug           enable debugging option"
 	echo "--uninstall       uninstall milestone"
 	echo
 	echo "Practice Options"
@@ -116,6 +120,7 @@ usage() {
 	echo "-p, --practices   begin practicing"
 	echo "-l, --lookup      lookup practice title and continue"
 	echo "-s, --score       score last practice"
+	echo "--tab             adjust tab size, default=4"
 	echo
 	echo "Editing Options"
 	echo
@@ -711,7 +716,7 @@ elif [ -f $practice_history_file ] && ! $RESET_OPTION; then
 	line_counter=$(cat $practice_history_file);
 	if [ -f $practice_history_tree ]
 	then
-		sed 's/\t/  /g' $practice_history_tree
+		sed "s/\t/$TABSTRING/g" $practice_history_tree
 	fi
 else
 	line_counter=0;
@@ -725,12 +730,7 @@ do
 	nextline=$(grep -A1 -E "^$line$" $practice_tree 2>/dev/null | sed 1d)
 	nextdepth=$(echo "$nextline" | grep -oP "\t" | wc -l)
 	nexttopic=$(echo "$nextline" | grep -oP "^[^\t]" | wc -l)
-	line=$(echo "$line" | sed 's/^\t/  /g')
-	if $DEBUG; then echo "line: $line" ; fi
-	if $DEBUG; then echo "linedepth: $linedepth" ; fi
-	if $DEBUG; then echo "topic: $topic" ; fi
-	if $DEBUG; then echo "nextline: " $nextline; fi
-	if $DEBUG; then echo "nexttopic: $nexttopic" ; fi
+	line=$(echo "$line" | sed "s/^\t/$TABSTRING/g")
 
 	# make history
 	echo $line_counter > $practice_history_file;
@@ -739,13 +739,13 @@ do
 	then
 		historydepth=$(tail -n1 $practice_history_tree | grep -oP "\ \ " | wc -l);
 		if $DEBUG; then echo -e $BOLD"***\nremoving lines with depth $linedepth"$DEFAULT; fi
-		if $DEBUG; then sed -n "/$(printf "%0.s\ \ " $(seq 0 $linedepth))/p" $practice_history_tree; fi
+		if $DEBUG; then sed -n "/$(printf "%0.s$TABSTRING" $(seq 0 $linedepth))/p" $practice_history_tree; fi
 		if $DEBUG; then echo -e $BOLD"***"$DEFAULT; fi
 
 		if [ $linedepth -eq 0 ]; then
 			sed -i 'd' $practice_history_tree
 		elif [ $linedepth -le $historydepth ]; then
-			sed -i "/$(printf %0.s\ \  $(seq 0 $(expr $linedepth - 1)))/d" $practice_history_tree
+			sed -i "/$(printf "%0.s$TABSTRING_ESCAPED" $(seq 0 $(expr $linedepth - 1)))/d" $practice_history_tree
 		fi
 	fi
 
@@ -771,13 +771,13 @@ do
 		if [ $nextdepth -gt $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth+$nextdepth; fi
-			echo -e "$line" | sed 's/\t/  /g' | tee -a $practice_history_tree
+			echo -e "$line" | sed "s/\t/$TABSTRING/g" | tee -a $practice_history_tree
 		# deepest topic
 		elif [ $nextdepth -lt $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
 			echo -en $(tput bold)"$line" |\
-			   	sed -r -e 's/\t/\ \ /g'\
+			   	sed -r -e "s/\t/$TABSTRING/g"\
 				-e "s/(\([^\)]*)\[([depricate,obsolete,obsolescence])([^,\)]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
 				-e "s/([^\(]*)\[([depricate,obsolete,obsolescence])([^\n]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
 				-e "s/(,[^,]*)\[([depricate,obsolete,obsolescence])([^,]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
@@ -864,6 +864,12 @@ parse_option() {
 		PAIR_OPTION=true;
 		LOOKUP_OPTION=true;
 		LOOKUP_TEXT=$option_value;
+		;;
+	"--tab")
+		PAIR_OPTION=true;
+		TABSIZE=$option_value;
+		TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
+		TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
 		;;
 	"--verbose")
 		VERBOSE_OPTION=true;
