@@ -690,15 +690,15 @@ then
 fi
 
 if $LOOKUP_OPTION && [ -n "$LOOKUP_TEXT" ]; then
-	match=$(grep -Ei "^##.*$LOOKUP_TEXT.*" $practice_tree)
-	match_counter=$(echo "$match" | grep -o '##' | wc -l)
+	match=$(grep -Ei "^$LOOKUP_TEXT.*" $practice_tree)
+	match_counter=$(echo "$match" | grep -oE '^[^\t]' | wc -l)
 
 	if [ $match_counter -eq 0 ]; then
 		echo -e $BOLD"No match found for \"$LOOKUP_TEXT\""$DEFAULT
 		return
 	elif [ $match_counter -gt 1 ]; then
 		echo -e $BOLD"Match ambiguity, choose:"$DEFAULT
-		echo "$match" | sed 's/##//' | nl
+		echo "$match" | nl
 		read choice
 		match=$(echo "$match" | awk "NR == $choice")
 	fi
@@ -721,28 +721,35 @@ skipped_flag=false
 while IFS= read -r line
 do
 	linedepth=$(echo "$line" | grep -oP "\t" | wc -l)
+	topic=$(echo "$line" | grep -oP "^[^\t]" | wc -l)
 	nextline=$(grep -A1 -E "^$line$" $practice_tree 2>/dev/null | sed 1d)
 	nextdepth=$(echo "$nextline" | grep -oP "\t" | wc -l)
-	topic=$(echo "$line" | grep -oE "^\#\#" | wc -l)
-	nexttopic=$(echo $nextline | grep -oE "^\#\#" | wc -l)
+	nexttopic=$(echo "$nextline" | grep -oP "^[^\t]" | wc -l)
 	line=$(echo "$line" | sed 's/^\t/  /g')
+	if $DEBUG; then echo "line: $line" ; fi
+	if $DEBUG; then echo "linedepth: $linedepth" ; fi
+	if $DEBUG; then echo "topic: $topic" ; fi
+	if $DEBUG; then echo "nextline: " $nextline; fi
+	if $DEBUG; then echo "nexttopic: $nexttopic" ; fi
 
 	# make history
 	echo $line_counter > $practice_history_file;
 
 	if [ -f $practice_history_tree ]
 	then
-		historydepth=$(tail -n1 $practice_history_tree | grep -oP "  " | wc -l);
-		if [ $linedepth -lt $historydepth ]
-		then
-			if $DEBUG; then echo -e $BOLD"***\nremoving lines with depth $linedepth$DEFAULT"; fi
-			if $DEBUG; then sed -n "/$(printf "%0.s\ \ " $(seq 0 $linedepth))/p" $practice_history_tree; fi
-			if $DEBUG; then echo -e $BOLD"***$DEFAULT"; fi
-			sed -i "/$(printf "%0.s\ \ " $(seq 0 $linedepth))/d" $practice_history_tree
+		historydepth=$(tail -n1 $practice_history_tree | grep -oP "\ \ " | wc -l);
+		if $DEBUG; then echo -e $BOLD"***\nremoving lines with depth $linedepth"$DEFAULT; fi
+		if $DEBUG; then sed -n "/$(printf "%0.s\ \ " $(seq 0 $linedepth))/p" $practice_history_tree; fi
+		if $DEBUG; then echo -e $BOLD"***"$DEFAULT; fi
+
+		if [ $linedepth -eq 0 ]; then
+			sed -i 'd' $practice_history_tree
+		elif [ $linedepth -le $historydepth ]; then
+			sed -i "/$(printf %0.s\ \  $(seq 0 $(expr $linedepth - 1)))/d" $practice_history_tree
 		fi
 	fi
 
-	# same level
+	# consequitive root levels are ignored
 	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]
 	then
 		((++line_counter));
@@ -756,7 +763,7 @@ do
 		fi
 
 		if $DEBUG; then echo -n $linedepth+$nextdepth; fi
-		echo -e $LIGHT_BLUE"$line"$DEFAULT | tr -d '##' | tee -a $practice_history_tree
+		echo -e $LIGHT_BLUE"$line"$DEFAULT | tee -a $practice_history_tree
 	# deeper topic
 	elif [ $topic -eq 0 ]
 	then
@@ -764,12 +771,12 @@ do
 		if [ $nextdepth -gt $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth+$nextdepth; fi
-			echo -e "  $line" | sed 's/\t/  /g' | tee -a $practice_history_tree
+			echo -e "$line" | sed 's/\t/  /g' | tee -a $practice_history_tree
 		# deepest topic
-		elif [ $nextdepth -le $linedepth ]
+		elif [ $nextdepth -lt $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -en $(tput bold)"  $line" |\
+			echo -en $(tput bold)"$line" |\
 			   	sed -r -e 's/\t/\ \ /g'\
 				-e "s/(\([^\)]*)\[([depricate,obsolete,obsolescence])([^,\)]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
 				-e "s/([^\(]*)\[([depricate,obsolete,obsolescence])([^\n]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
