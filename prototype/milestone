@@ -778,9 +778,9 @@ do
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
 			echo -en $(tput bold)"$line" |\
 			   	sed -r -e "s/\t/$TABSTRING/g"\
-				-e "s/(\([^\)]*)\[([depricate,obsolete,obsolescence])([^,\)]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
-				-e "s/([^\(]*)\[([depricate,obsolete,obsolescence])([^\n]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
-				-e "s/(,[^,]*)\[([depricate,obsolete,obsolescence])([^,]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
+				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
+				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
+				-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
 				&& tput sgr0
 			if [ $(echo "$line" | grep -Eo ",$" | wc -l) -eq 1 ]; then
 				echo
