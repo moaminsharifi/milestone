@@ -30,6 +30,7 @@ custom_vtime() {
 	vtime=$(echo "$1" | sed -r 's/(.*)h([0-9]*)-([0-9]*)$/\1 \2:\3/');
 	vnow=$(date -d "$vtime" +%Fh%R | tr ':' '-');
 }
+daily_note=$now.note
 
 MINIMUM_MONTHLY_DONE_PER_TASK=$(expr $TODAY \* 2 / 5);
 AVERAGE_MONTHLY_DONE_PER_TASK=$(expr $TODAY \* 3 / 5);
@@ -73,6 +74,8 @@ LOOKUP_TEXT=;
 TABSIZE=4
 TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
 TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
+WRITE_NOTE_OPTION=false;
+CHECK_NOTE=false;
 
 # color codes
 DARK="\e[30m"
@@ -120,6 +123,8 @@ usage() {
 	echo "-p, --practices   begin practicing"
 	echo "-l, --lookup      lookup practice title and continue"
 	echo "-s, --score       score last practice"
+	echo "-w, --write-note  write daily note objectives"
+	echo "-n <n>, --noted   check note, makes note disappear"
 	echo "--tab             adjust tab size, default=4"
 	echo
 	echo "Editing Options"
@@ -200,6 +205,41 @@ represent() {
 	COLOR_OF_DAY=$LIGHT_GREEN;
 
 	show_practices /tmp/$practice_file
+}
+
+write_daily_note() {
+	echo -e $BLUE"Write note per line and terminate by ^C+D"$DEFAULT; echo;
+	note_counter=0
+	if [ -f $location/daily_note ]; then
+		sed -i 'd' $location/daily_note
+	fi
+
+	while IFS= read -r line; do
+		echo "$line" >> $location/daily_note
+		((++note_counter))
+	done
+
+	echo -e $GREEN"$note_counter notes saved."$DEFAULT; echo;
+}
+
+show_daily_note() {
+	echo -e $LIGHT_CYAN"Daily Notes"$DEFAULT; echo;
+
+	if [ -f $location/daily_note ]; then
+		nl $location/daily_note | column
+	fi
+	echo
+}
+
+check_note() {
+	if [ $note_number -gt $(wc -l $location/daily_note | cut -d' ' -f1) ]; then
+		echo -e $BOLD"Note number out of range"$DEFAULT;
+		return
+	fi
+
+	note=$(nl $location/daily_note | sed -n "${note_number}p" | cut -d'	' -f2)
+	echo -e "The note <$LIGHT_YELLOW$note$DEFAULT> is$GREEN checked$DEFAULT";
+	sed -i "${note_number}d" $location/daily_note
 }
 
 show_cycle() {
@@ -865,6 +905,16 @@ parse_option() {
 		LOOKUP_OPTION=true;
 		LOOKUP_TEXT=$option_value;
 		;;
+	"-w"|"--write-note")
+		ACTIVITY_OPTIONS=true;
+		WRITE_NOTE_OPTION=true;
+		;;
+	"-n"|"--noted")
+		ACTIVITY_OPTIONS=true;
+		CHECK_NOTE=true;
+		PAIR_OPTION=true;
+		note_number=$option_value;
+		;;
 	"--tab")
 		PAIR_OPTION=true;
 		TABSIZE=$option_value;
@@ -956,6 +1006,14 @@ if $SQUEEZE_OPTION; then
 	DISPLAY_WIDTH=$(expr $DISPLAY_WIDTH / $SQUEEZE_VALUE);
 fi
 
+if $WRITE_NOTE_OPTION; then
+	write_daily_note
+fi
+
+if $CHECK_NOTE; then
+	check_note
+fi
+
 if $SCORE_OPTION; then
 	score_practice;
 fi
@@ -1015,6 +1073,7 @@ if $REORDER_OPTION; then
 fi
 
 if $CICLE_REPRESENTATION_OPTION && $ACTIVITY_OPTIONS; then
+	show_daily_note
 	show_cycle;
 fi
 
@@ -1024,6 +1083,7 @@ if $REPRESENT_OPTION || ! $ACTIVITY_OPTIONS; then
 	elif $DAILY_REPORT; then
 		represent;
 	else
+		show_daily_note
 		show_cycle;
 	fi
 fi
