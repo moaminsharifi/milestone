@@ -281,7 +281,7 @@ show_cycle() {
 		ring_done=$(grep -o "\-\-" $location/$ring_file | wc -l);
 		ring_percentage=$(expr $ring_done \* 100 \/ $ring_total);
 
-		echo -e $LIGHT_CYAN"    Ring $ring_number$DEFAULT$CYAN - $ring_percentage% (day $ring_day)"$DEFAULT; echo;
+		echo -e $LIGHT_CYAN"    Ring $ring_number$DEFAULT$CYAN - $ring_percentage%"$DEFAULT; echo;
 		show_practices $location/$ring_file
 	done
 }
