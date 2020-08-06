@@ -12,28 +12,33 @@ else
 	root=$1
 fi
 
+# coloring scheme
+black=0
+red=1
+green=2
+yellow=3
+blue=4
+magenta=5
+cyan=6
+white=7
+
+result=
 language_analyzer() {
-	# if no file was given, do nothing
-	if [ -z "$1" ]; then return; fi
-
 	filepath=$1
-	filename=$(basename $filepath)
+	filename=${filepath##*/}
 	file_extension=${filename##*.}
-	line_count=$(wc -l $filepath | cut -d' ' -f1)
-	result_file=/tmp/language_analyzer
-
-	# coloring scheme
-	black=0
-	red=1
-	green=2
-	yellow=3
-	blue=4
-	magenta=5
-	cyan=6
-	white=7
+	line_count=$(wc -l "$filepath" | cut -d' ' -f1)
 
 	# detect language from extension
 	case $file_extension in
+		md)
+			language=Markdown
+			language_color=$cyan
+			;;
+		[mM]akefile)
+			language=Makefile
+			language_color=$black
+			;;
 		asm)
 			language=Assembly
 			language_color=$blue
@@ -45,10 +50,6 @@ language_analyzer() {
 		c++|cxx|cpp|hpp|hxx|cu)
 			language=Cxx
 			language_color=$red
-			;;
-		Markdown|md)
-			language=Markdown
-			language_color=$cyan
 			;;
 		sh)
 			language=Shell
@@ -73,40 +74,48 @@ language_analyzer() {
 		*)
 			language=Other
 			language_color=$white
+			return
 			;;
 	esac
 
 	# restore previous line count
-	previous_count=$(grep -E "^$language\ " $result_file | sed -r "s/^$language\ ([0-9]*)\ .*/\1/")
-	#previous_count=$(awk '{print $2}' <<< "$list")
+	previous_count=$(awk -v language=$language 'BEGIN{ RS=":" } $1==language {print $2}' <<< "$result")
 
-	# if the extension does not already exist in the result_file, add it
+	# if the extension does not already exist in the result, add it
 	if [ -z "$previous_count" ]; then
 		previous_count=0;
-		echo "$language 0 $language_color" >> $result_file
+		result="$language 0 $language_color:$result"
 	fi
 
 	# sum up the lines of this extension
 	((line_count+=previous_count))
-	sed -i -r "s/^($language)\ $previous_count\ ($language_color)$/\1\ $line_count\ \2/" $result_file
+	result=$(echo "$result" | awk -v language="$language" -v count=$line_count 'BEGIN{RS=":"; ORS=":"} $1==language {$2=count} NF==3')
 }
 
 language_analyzer_result() {
-	result_file=/tmp/language_analyzer
-
 	# sum up all line counts
-	sum=$(awk '{sum+=$2}END{print sum;}' /tmp/language_analyzer)
+	sum=$(awk 'BEGIN{RS=":"} {sum+=$2} END{print sum;}' <<< "$result")
 
-	# evaluage line counts in result_file
-	gawk -i inplace -v sum=$sum '{percentage=$2*100/sum; printf "%s %.1f %s\n", $1, percentage, $3}' $result_file
+	if [ $sum -eq 0 ]; then
+		tput bold
+		echo "no output"
+		tput sgr0
+		return
+	fi
+
+	# evaluage line counts in result
+	# fixme
+	result=$(echo "$result" | sed 's/:$//')
+	result=$(echo "$result" | awk -v sum=$sum 'BEGIN{RS=":"} {percentage=$2*100/sum; printf "%s %.1f %s\n", $1, percentage, $3}')
 
 	# sort the languages based on percentage
-	sort -k2 -r -o $result_file $result_file
+	result=$(echo "$result" | tr ':' '\n' | sort -k2 -r -h | sed '/^$/d' | tr '\n' ':')
 
 	# put the Other languages at the end if there are
-	other=$(grep Other $result_file)
+	other=$(awk 'BEGIN{RS=":"} $1=="Other"' <<< "$result")
 	if [ -n "$other" ]; then
-		sed -i -e "/$other/d;\$a$other" $result_file
+		#result=$(echo "$result" | tr ':' '\n' | sed "/$other/d;\$a$other" | tr '\n' ':')
+		result=$(echo "$result" | tr ':' '\n' | sed "/$other/d" | tr '\n' ':')
 	fi
 
 	echo "Languages"
@@ -122,12 +131,11 @@ language_analyzer_result() {
 		tput setaf $color
 		printf "%0.s\u2588" $(seq 1 $line_length)
 		tput sgr0
-	done < /tmp/language_analyzer
+	done <<< $(echo "$result" | tr ':' '\n' | sed '/^$/d')
 	echo
 	echo
 
 	# write language names
-	axis_length=40
 	while FS= read -r line; do
 		language=$(cut -d' ' -f1 <<< "$line")
 		percentage=$(cut -d' ' -f2 <<< "$line")
@@ -140,22 +148,21 @@ language_analyzer_result() {
 		tput dim
 		echo $percentage
 		tput sgr0
-	done < /tmp/language_analyzer
+	done <<< $(echo "$result" | tr ':' '\n' | sed '/^$/d')
 }
 
-# make sure empty result_file exists
-rm -f /tmp/language_analyzer
-touch /tmp/language_analyzer
+language_graph() {
+	# make function accessible globally
+	export -f language_analyzer
 
-# make function accessible globally
-export -f language_analyzer
+	# search files and add them to results
+	find $root -type f -not -path '*/\.*' -not -executable > /tmp/language_analyzer
+	while FS= read -r file; do
+		language_analyzer "$file"
+	done < /tmp/language_analyzer
 
-# search files and add them to results
-find $root -type f ! -name "*~" ! -name ".*~" ! -name "*.swp" ! -path '*/\.*' ! -executable > /tmp/analysis_files
+	# output the result
+	language_analyzer_result
+}
 
-while FS= read -r file; do
-	language_analyzer $file
-done < /tmp/analysis_files
-
-# output the result
-language_analyzer_result
+language_graph
