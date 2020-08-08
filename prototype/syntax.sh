@@ -1,29 +1,29 @@
 #!/bin/bash
 
-if [ $# -ne 1 ]; then
-	echo "no path given"
-	exit
-elif ! [ -d $1 ]; then
-	echo "invalid path given"
-	exit
+if [ $# -eq 0 ]; then
+	tput bold
+	echo "Usage: $0 </path/to/directory>"
+	tput sgr0
+	exit 1
 elif [ -f $1 ]; then
-	root=$(dirname $1)
+	directory=$(dirname $1)
 else
-	root=$1
+	directory=$1
 fi
 
-# coloring scheme
-black=0
-red=1
-green=2
-yellow=3
-blue=4
-magenta=5
-cyan=6
-white=7
-
+## Result string will be stored in this variable.
+## Records are delimited by : character and are stacked in one line.
+## RS=":" (Record Seperator)
+## FS="," (Field Seperator)
+## Fields: "language name,line count,coloring scheme"
+## e.g. "Python,163,6:HTML,1457,1:CSS,640,5:JavaScript,316,3"
 result=
-language_analyzer() {
+
+## This function is called for each file existing in the given directory.
+## Languages are detected based on file extension (maybe syntax later).
+## Counts lines of given file and stores in result.
+## Currently this function is inefficient and has performance penalty.
+file_analyzer() {
 	filepath=$1
 	filename=${filepath##*/}
 	file_extension=${filename##*.}
@@ -31,138 +31,119 @@ language_analyzer() {
 
 	# detect language from extension
 	case $file_extension in
-		md)
-			language=Markdown
-			language_color=$cyan
-			;;
 		[mM]akefile)
 			language=Makefile
-			language_color=$black
+			language_color=0 #black
 			;;
-		asm)
+		asm|[sS]|sx)
 			language=Assembly
-			language_color=$blue
+			language_color=4 #blue
 			;;
-		c|h)
+		[cC]|[hH]|i)
 			language=C
-			language_color=$magenta
+			language_color=5 #magenta
 			;;
-		c++|cxx|cpp|hpp|hxx|cu)
+		c++|cxx|[cC][pP][pP]|[hH][pP][pP]|hxx|cu|cc|ii|cp|hh|h++|tcc)
 			language=Cxx
-			language_color=$red
+			language_color=1 #red
 			;;
 		sh)
 			language=Shell
-			language_color=$green
+			language_color=2 #green
 			;;
 		py)
 			language=Python
-			language_color=$blue
+			language_color=6 #cyan
 			;;
-		html|htm)
+		html|htm|[a-z]html)
 			language=HTML
-			language_color=$red
-			;;
-		tex)
-			language=TeX
-			language_color=$green
+			language_color=1 #red
 			;;
 		js)
 			language=JavaScript
-			language_color=$yellow
+			language_color=3 #yellow
+			;;
+		css)
+			language=Css
+			language_color=6 #magenta
+			;;
+		tex)
+			language=TeX
+			language_color=2 #green
 			;;
 		*)
-			language=Other
-			language_color=$white
+			# ignore unknown languages
 			return
 			;;
 	esac
 
-	# restore previous line count
-	previous_count=$(awk -v language=$language 'BEGIN{ RS=":" } $1==language {print $2}' <<< "$result")
+	## query the number of lines written in this language, if it already exists.
+	previous_count=$(awk -v language=$language 'BEGIN{FS=",";RS=":"} $1==language {print $2}' <<< "$result")
 
-	# if the extension does not already exist in the result, add it
+	# if this language does not already exist from previous query, add it
 	if [ -z "$previous_count" ]; then
-		previous_count=0;
-		result="$language 0 $language_color:$result"
+		previous_count=0
+		result="$language,0,$language_color:$result"
 	fi
 
-	# sum up the lines of this extension
+	# add up the line count for this language
 	((line_count+=previous_count))
-	result=$(echo "$result" | awk -v language="$language" -v count=$line_count 'BEGIN{RS=":"; ORS=":"} $1==language {$2=count} NF==3')
+	result=$(awk -v language="$language" -v count=$line_count 'BEGIN{FS=",";OFS=",";RS=":";ORS=":"} $1==language {$2=count} NF==3' <<< "$result")
 }
 
-language_analyzer_result() {
-	# sum up all line counts
-	sum=$(awk 'BEGIN{RS=":"} {sum+=$2} END{print sum;}' <<< "$result")
+## This function prints the language bar.
+## Evaluates the usage percentage of each language.
+## 
+display_bar() {
+	# store the sum of lines in all affected languages for later use
+	sum=$(awk 'BEGIN{FS=",";RS=":"} {sum+=$2} END{print sum;}' <<< "$result")
 
 	if [ $sum -eq 0 ]; then
 		tput bold
-		echo "no output"
+		echo "No output"
 		tput sgr0
-		return
+		return 3
 	fi
 
-	# evaluage line counts in result
-	# fixme
-	result=$(echo "$result" | sed 's/:$//')
-	result=$(echo "$result" | awk -v sum=$sum 'BEGIN{RS=":"} {percentage=$2*100/sum; printf "%s %.1f %s\n", $1, percentage, $3}')
+	# FIXME: remove the last useless colon in result
+	result=$(sed 's/:$//' <<< "$result")
+
+	# evaluage usage percentage of each language
+	result=$(awk -v sum=$sum 'BEGIN{FS=",";OFS=",";RS=":";ORS=":"} {percentage=$2*100/sum; printf "%s,%.1f,%s\n", $1, percentage, $3}' <<< "$result")
 
 	# sort the languages based on percentage
-	result=$(echo "$result" | tr ':' '\n' | sort -k2 -r -h | sed '/^$/d' | tr '\n' ':')
+	result=$(echo "$result" | tr ':' '\n' | sort -t, -k2 -r -h | sed '/^$/d' | tr '\n' ':')
 
-	# put the Other languages at the end if there are
-	other=$(awk 'BEGIN{RS=":"} $1=="Other"' <<< "$result")
-	if [ -n "$other" ]; then
-		#result=$(echo "$result" | tr ':' '\n' | sed "/$other/d;\$a$other" | tr '\n' ':')
-		result=$(echo "$result" | tr ':' '\n' | sed "/$other/d" | tr '\n' ':')
-	fi
+	# FIXME: remove the last useless colon in result
+	result=$(sed 's/:$//' <<< "$result")
 
-	echo "Languages"
-	echo
+	echo -e "Languages\n"
 
-	# draw the colored block line
-	axis_length=40
-	while FS= read -r line; do
-		language=$(cut -d' ' -f1 <<< "$line")
-		percentage=$(cut -d' ' -f2 <<< "$line")
-		color=$(cut -d' ' -f3 <<< "$line")
-		line_length=$(echo "$percentage * $axis_length / 100" | bc)
-		tput setaf $color
-		printf "%0.s\u2588" $(seq 1 $line_length)
-		tput sgr0
-	done <<< $(echo "$result" | tr ':' '\n' | sed '/^$/d')
+	# draw language bar
+	block=$(echo -e "\u2588")
+	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); for(c=0;c<$2*axis/100;c++) printf "%s",block}' <<< "$result"
+	tput sgr0
 	echo
 	echo
 
 	# write language names
-	while FS= read -r line; do
-		language=$(cut -d' ' -f1 <<< "$line")
-		percentage=$(cut -d' ' -f2 <<< "$line")
-		color=$(cut -d' ' -f3 <<< "$line")
-		line_length=$(echo "$percentage * $axis_length / 100" | bc)
-		tput setaf $color
-		echo -ne "\u25cf "
-		tput sgr0
-		echo -n "$language "
-		tput dim
-		echo $percentage
-		tput sgr0
-	done <<< $(echo "$result" | tr ':' '\n' | sed '/^$/d')
+	block=$(echo -e "\u25cf")
+	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); printf "%s %s ", block, $1; system("tput sgr0"); system("tput dim"); printf "%%%.1f\n", $2}' <<< "$result"
+	tput sgr0
 }
 
-language_graph() {
-	# make function accessible globally
-	export -f language_analyzer
+language_analyzer() {
+	# make this function accessible globally
+	export -f file_analyzer
 
-	# search files and add them to results
-	find $root -type f -not -path '*/\.*' -not -executable > /tmp/language_analyzer
+	# search files for language detection
+	find $directory -type f -not -path '*/\.*' > /tmp/record
 	while FS= read -r file; do
-		language_analyzer "$file"
-	done < /tmp/language_analyzer
+		file_analyzer "$file"
+	done < /tmp/record
 
 	# output the result
-	language_analyzer_result
+	display_bar
 }
 
-language_graph
+language_analyzer
