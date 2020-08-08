@@ -132,9 +132,6 @@ display_bar() {
 }
 
 language_analyzer() {
-	# make this function accessible globally
-	export -f file_analyzer
-
 	# search files for language detection
 	find $directory -type f -not -path '*/\.*' > /tmp/record
 	while FS= read -r file; do
