@@ -73,6 +73,7 @@ file_analyzer() {
 			;;
 		*)
 			# ignore unknown languages
+			echo "$file_extension" > syntax.log
 			return
 			;;
 	esac
@@ -121,15 +122,14 @@ display_bar() {
 
 	# draw language bar
 	block=$(echo -e "\u2588")
-	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); for(c=0;c<$2*axis/100;c++) printf "%s",block}' <<< "$result"
+	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); for(c=0;c<$2*axis/100;c++) printf "%s",block; system("tput sgr0")}' <<< "$result"
 	tput sgr0
 	echo
 	echo
 
 	# write language names
 	block=$(echo -e "\u25cf")
-	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); printf "%s %s ", block, $1; system("tput sgr0"); system("tput dim"); printf "%%%.1f\n", $2}' <<< "$result"
-	tput sgr0
+	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); printf "%s %s ", block, $1; system("tput sgr0"); system("tput dim"); printf "%%%.1f\n", $2; system("tput sgr0")}' <<< "$result"
 }
 
 language_analyzer() {
