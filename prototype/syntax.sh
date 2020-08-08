@@ -73,7 +73,6 @@ file_analyzer() {
 			;;
 		*)
 			# ignore unknown languages
-			echo "$file_extension" > syntax.log
 			return
 			;;
 	esac
