@@ -808,7 +808,7 @@ display_bar() {
 
 	# write language names
 	block=$(echo -e "\u25cf")
-	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); printf "%s %s ", block, $1; system("tput sgr0"); system("tput dim"); printf "%%%.1f\n", $2; system("tput sgr0")}' <<< "$result" | pr -2 -t
+	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); printf "%s %s ", block, $1; system("tput sgr0"); system("tput dim"); printf "%%%.1f\n", $2; system("tput sgr0")}' <<< "$result" | pr -2 -t -a
 	echo
 }
 
