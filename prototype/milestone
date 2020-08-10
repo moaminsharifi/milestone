@@ -76,6 +76,7 @@ TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
 TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
 WRITE_NOTE_OPTION=false;
 CHECK_NOTE=false;
+CLOSE_CYCLE=false;
 
 # color codes
 DARK="\e[30m"
@@ -223,16 +224,17 @@ write_daily_note() {
 }
 
 show_daily_note() {
-	echo -e $LIGHT_CYAN"Daily Notes"$DEFAULT; echo;
-
 	if [ -f $location/daily_note ]; then
+		echo -e $LIGHT_CYAN"Daily Notes"$DEFAULT; echo;
 		nl $location/daily_note | column
+		echo
 	fi
-	echo
 }
 
 check_note() {
-	if [ $note_number -gt $(wc -l $location/daily_note | cut -d' ' -f1) ]; then
+	note_count=$(wc -l $location/daily_note | cut -d' ' -f1)
+
+	if [ $note_number -gt $note_count ]; then
 		echo -e $BOLD"Note number out of range"$DEFAULT;
 		return
 	fi
@@ -240,6 +242,10 @@ check_note() {
 	note=$(nl $location/daily_note | sed -n "${note_number}p" | cut -d'	' -f2)
 	echo -e "The note <$LIGHT_YELLOW$note$DEFAULT> is$GREEN checked$DEFAULT";
 	sed -i "${note_number}d" $location/daily_note
+
+	if [ $note_count -le 1 ]; then
+		rm $location/daily_note;
+	fi
 }
 
 show_cycle() {
@@ -509,8 +515,8 @@ reorder_cycle() {
 	update_ring_list
 	make_practice
 
-	cat /tmp/$practice_file | cut -d'     ' -f2 > /tmp/milestone/newlist
-	cat $location/$cycle_file | cut -d'     ' -f2 > /tmp/milestone/oldlist
+	cat /tmp/$practice_file | cut -d'	' -f2 > /tmp/milestone/newlist
+	cat $location/$cycle_file | cut -d'	' -f2 > /tmp/milestone/oldlist
 while read practice; do
 	practice_number=$(echo "$practice" | cut -d'	' -f1 | sed -r 's/^.*[^0-9]([0-9]*)$/\1/');
 	practice_title=$(echo "$practice" | cut -d'	' -f2);
@@ -563,7 +569,7 @@ if [ -f "$location/$latest_cycle" ]; then
 	update_ring_list;
 
 	# cycle is complete, make another
-	if [ $cycle_done_count -eq $cycle_total_tasks ]; then
+	if [ $cycle_done_count -eq $cycle_total_tasks ] || $CLOSE_CYCLE; then
 		# close cycle
 		sync_time;
 		echo -e $BOLD"closing cycle $cycle_number$DEFAULT"
@@ -588,7 +594,7 @@ if [ -f "$location/$latest_cycle" ]; then
 		cycle_end_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\2/');
 		ring_file=cycle$cycle_number\_ring$ring_number\_$cycle_start_time\_$cycle_end_time.list
 
-		#grep -E "^[^#]" $source_file | sort | nl > $location/$cycle_file
+		grep -E "^[^#]" $source_file | sort | nl > $location/$cycle_file
 
 		echo -e $BOLD"making new ring set for cycle $cycle_number"$DEFAULT;
 		make_ring;
@@ -1067,6 +1073,11 @@ parse_option() {
 		;;
 	"--debug")
 		DEBUG=true;
+		;;
+	"--restart")
+		ACTIVITY_OPTIONS=true;
+		CLOSE_CYCLE=true;
+		REORDER_OPTION=true;
 		;;
 	*)
 		ACTIVITY_OPTIONS=true;
