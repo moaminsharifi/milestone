@@ -648,6 +648,25 @@ else # no cycle exists at all
 fi
 }
 
+create_score_file() {
+	## remove swap files
+	find $practice_location/ -type f -name *~ -exec rm -f {} \;
+
+	# list practice files
+	find $practice_location/ -type f\
+		! -executable \
+		! -name *.sh \
+		! -name *.zip \
+		! -name *~ \
+		! -name ".*~" \
+		! -name *.swp \
+		! -name *.o \
+		! -name *.lst \
+		! -name *.gch \
+		! -name *.log \
+		> /tmp/score.log
+}
+
 backup_practices() {
 zip_errors="""
 unknown zip error
@@ -829,11 +848,7 @@ if ! [ -d $practice_location ]; then
 	mkdir -p $practice_location
 fi
 
-## remove swap files
-find $practice_location/ -type f -name *~ -exec rm -f {} \;
-
-# list practice files
-find $practice_location/ -type f ! -executable ! -name *.sh ! -name *.zip ! -name *~ ! -name ".*~" ! -name *.swp> /tmp/score.log
+create_score_file
 score_files=$(wc -l /tmp/score.log | cut -d' ' -f1)
 
 if [ $score_files -eq 0 ]; then
