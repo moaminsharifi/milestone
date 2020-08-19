@@ -655,15 +655,15 @@ create_score_file() {
 	# list practice files
 	find $practice_location/ -type f\
 		! -executable \
-		! -name "*.sh" \
-		! -name "*.zip" \
-		! -name "*~" \
-		! -name ".*~" \
-		! -name "*.swp" \
-		! -name "*.o" \
-		! -name "*.lst" \
-		! -name "*.gch" \
-		! -name "*.log" \
+		-name "*.cxx" -o \
+		-name "*.hpp" -o \
+		-name "*.cpp" -o \
+		-name "*.c" -o \
+		-name "*.h" -o \
+		-name "*.s" -o \
+		-name "*.asm" -o \
+		-iname "makefile" -o \
+		-iname "cmakefile" \
 		> /tmp/score.log
 }
 
@@ -828,7 +828,6 @@ display_bar() {
 	# write language names
 	block=$(echo -e "\u25cf")
 	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); printf "%s %s ", block, $1; system("tput sgr0"); system("tput dim"); printf "%%%.1f\n", $2; system("tput sgr0")}' <<< "$result" | pr -2 -t -a
-	echo
 }
 
 language_analyzer() {
@@ -862,14 +861,13 @@ elif [ $score_files -eq 1 ]; then
 elif $VERBOSE_OPTION && [ $score_files -gt 1 ]; then
 	score=$(wc -l $(cat /tmp/score.log) | grep total)
 	echo -e $BLUE"Score: $score "$DEFAULT
-	echo -e $BLUE"Files: "$DEFAULT
-	wc -l $(cat /tmp/score.log)
+	echo -e $BLUE"Files located in: $practice_location\n"
+	wc -l $(cat /tmp/score.log) | head -n-1 | sed s,$practice_location,...,
+	echo -e $DEFAULT
 else
 	score=$(wc -l $(cat /tmp/score.log) | grep total)
 	echo -e $BLUE"Score: $score "$DEFAULT
 fi
-
-echo
 language_analyzer $(readlink $practice_location)
 }
 
