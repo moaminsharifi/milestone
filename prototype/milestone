@@ -971,7 +971,7 @@ do
 				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
 				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
 				-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
-				-e "s/\{\%([^\[]*)\%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput bold)/g"\
+				-e "s/\{\%([^\{\%]*)\%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput bold)/g"\
 				&& tput sgr0
 			if [ $(echo "$line" | grep -Eo "\,$" | wc -l) -eq 1 ]; then
 				if $DEBUG; then echo -n " skipping "; fi
