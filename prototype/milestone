@@ -68,7 +68,6 @@ DECREMENT_PROGRESS=false;
 PRACTICES_OPTION=false;
 DEBUG=false
 SCORE_OPTION=false;
-VERBOSE_OPTION=false;
 LOOKUP_OPTION=false;
 LOOKUP_TEXT=;
 TABSIZE=4
@@ -77,6 +76,7 @@ TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
 WRITE_NOTE_OPTION=false;
 CHECK_NOTE=false;
 CLOSE_CYCLE=false;
+SELECTIVE_RING_OPTION=false;
 
 # color codes
 DARK="\e[30m"
@@ -298,35 +298,59 @@ show_disabled_goals() {
 }
 
 mark_done() {
-	PRACTICE_NUMBER=$1;
+	if echo "$1" | grep -qE '^[0-9]+$'; then # $1 is numeric
+		PRACTICE_NUMBER=$1;
+	else # $1 is not numeric
+		match=$(awk -v title="$1" 'BEGIN{FS="\t"; IGNORECASE=1} $2 ~ title {print $2}' $location/$cycle_file)
+		match_counter=$(echo "$match" | grep -oE '^[^\t]' | wc -l)
+
+		if [ $match_counter -eq 0 ]; then
+			echo -e $BOLD"No match found for \"$1\""$DEFAULT
+			return
+		elif [ $match_counter -gt 1 ]; then
+			echo -e $BOLD"Match ambiguity, choose:"$DEFAULT
+			echo "$match" | nl
+			read choice
+			match=$(echo "$match" | awk "NR == $choice")
+		fi
+
+		if [ -n "$match" ]; then
+			PRACTICE_NUMBER=$(awk -v title="$match" 'BEGIN{FS="\t"} $2 == title {print $1}' $location/$cycle_file | sed 's/.* //')
+			echo -e "Practice $BOLD#$PRACTICE_NUMBER$DEFAULT <$LIGHT_YELLOW$match$DEFAULT> selected"$DEFAULT
+		else
+			echo -e $BOLD"Failed to lookup practice"$DEFAULT
+			return
+		fi
+	fi
+
 	MIN_NUMBER=1;
 	MAX_NUMBER=$(cat $location/$cycle_file | cut -d'	' -f1 | sed 's/^--//' | sort -n | tail -n1 | xargs)
 	record=$(grep -E "^-?-?\ *.*[^0-9]$PRACTICE_NUMBER\	.*$" $(echo $ring_list | tr ' ' '\n' | sed s,^,$location\/, | xargs));
 	record_file=$(echo $record | cut -d':' -f1);
 	if test "$(echo $record | cut -d':' -f2 | cut -d' ' -f1)" == "--"; then already_done=true; else already_done=false; fi
 	practice_title=$(echo $record | cut -d':' -f2 | sed 's/^\-\-\ //' | xargs | cut -d' ' -f2- | sed 's/\ *(.*)//');
+	practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
+	practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
+	practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
+	practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
 
 	if [ $PRACTICE_NUMBER -ge $MIN_NUMBER ] && [ $PRACTICE_NUMBER -le $MAX_NUMBER ]; then
 		if $already_done && ! $INCREMENT_PROGRESS; then
 			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> as$BOLD done$DEFAULT";
 		else
 			if $INCREMENT_PROGRESS; then
-				echo -e "Marking$GREEN more progress$DEFAULT on <$LIGHT_YELLOW$practice_title$DEFAULT>"
+				echo -e $GREEN"Raising$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> progress to $GREEN$practice_unit $[practice_progress+1]$DEFAULT $VIOLET($[$[practice_progress+1] * 100 / $practice_total]% - $[practice_progress+1] of $practice_total)$DEFAULT"
 			else
 				echo -e "Marking <$LIGHT_YELLOW$practice_title$DEFAULT> as$GREEN done$DEFAULT"
 			fi
 
-			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; else echo; fi
+			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; fi
 			sed -i -r s,^.*[^0-9]$PRACTICE_NUMBER[^0-9]\(.*\)$,"$(printf "\-\-%4s" $PRACTICE_NUMBER)"\\\t\\\1, /tmp/$practice_file;
 			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $location/$cycle_file;
 			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $record_file;
 
 			if $INCREMENT_PROGRESS; then
-				practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
 				if test -n "$practice_info"; then
-					practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
-					practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
-					practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
 					if [ "$practice_unit" == "complete" ] || [ $(expr $practice_progress + 1) -gt $practice_total ]; then
 						echo -e "You finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
 						return;
@@ -339,19 +363,43 @@ mark_done() {
 		echo "Incorrect practice number";
 		return;
 	fi
-
 }
 
 mark_not_done() {
-	PRACTICE_NUMBER=$1;
-	MIN_NUMBER=0;
+	if echo "$1" | grep -qE '^[0-9]+$'; then # $1 is numeric
+		PRACTICE_NUMBER=$1;
+	else # $1 is not numeric
+		match=$(awk -v title="$1" 'BEGIN{FS="\t"; IGNORECASE=1} $2 ~ title {print $2}' $location/$cycle_file)
+		match_counter=$(echo "$match" | grep -oE '^[^\t]' | wc -l)
+
+		if [ $match_counter -eq 0 ]; then
+			echo -e $BOLD"No match found for \"$1\""$DEFAULT
+			return
+		elif [ $match_counter -gt 1 ]; then
+			echo -e $BOLD"Match ambiguity, choose:"$DEFAULT
+			echo "$match" | nl
+			read choice
+			match=$(echo "$match" | awk "NR == $choice")
+		fi
+
+		if [ -n "$match" ]; then
+			PRACTICE_NUMBER=$(awk -v title="$match" 'BEGIN{FS="\t"} $2 == title {print $1}' $location/$cycle_file | sed 's/.* //')
+			echo -e "Practice $BOLD#$PRACTICE_NUMBER$DEFAULT <$LIGHT_YELLOW$match$DEFAULT> selected"$DEFAULT
+		else
+			echo -e $BOLD"Failed to lookup practice"$DEFAULT
+			return
+		fi
+	fi
+	MIN_NUMBER=1;
 	MAX_NUMBER=$(cat $location/$cycle_file | cut -d'	' -f1 | sed 's/^--//' | sort -n | tail -n1 | xargs)
-	RECORD=$(grep -E "^[^#]" $source_file | sort | sed '/^\ *$/d' | nl -bp^[^#] | grep -E "^\ *$PRACTICE_NUMBER[^0-9]\ *.*$" | xargs | sed 's/^\-\-\ //');
-	PRACTICE_TITLE=$(echo "$RECORD" | cut -d' ' -f2-);
-	record=$(grep -E "^-?-?\ *.*[^0-9]$PRACTICE_NUMBER\	$PRACTICE_TITLE$" $(echo $ring_list | tr ' ' '\n' | sed s,^,$location\/, | xargs));
+	record=$(grep -E "^-?-?\ *.*[^0-9]$PRACTICE_NUMBER\	.*$" $(echo $ring_list | tr ' ' '\n' | sed s,^,$location\/, | xargs));
 	record_file=$(echo $record | cut -d':' -f1);
-	practice_title=$(echo $record | cut -d':' -f2 | sed 's/^\-\-\ //' | xargs | cut -d' ' -f2- | sed 's/\ *(.*)//');
 	if test "$(echo $record | cut -d':' -f2 | cut -d' ' -f1)" == "--"; then already_done=true; else already_done=false; fi
+	practice_title=$(echo $record | cut -d':' -f2 | sed 's/^\-\-\ //' | xargs | cut -d' ' -f2- | sed 's/\ *(.*)//');
+	practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
+	practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
+	practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
+	practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
 
 	if [ $PRACTICE_NUMBER -gt $MIN_NUMBER ] && [ $PRACTICE_NUMBER -le $MAX_NUMBER ]; then
 		if ! $already_done && ! $DECREMENT_PROGRESS; then
@@ -365,26 +413,25 @@ mark_not_done() {
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $location/$cycle_file;
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $record_file;
 		else
-			echo -e $BOLD"Rolling back$DEFAULT progress on <$LIGHT_YELLOW"$PRACTICE_TITLE"$DEFAULT>"
+			echo -e $BOLD"Rolling back$DEFAULT <$LIGHT_YELLOW"$practice_title"$DEFAULT> progress to $BOLD$practice_unit $[practice_progress-1]$DEFAULT $VIOLET($[$[practice_progress-1] * 100 / $practice_total]% - $[practice_progress-1] of $practice_total)$DEFAULT"
 		fi
 	else
 		echo "Incorrect practice number";
 	fi
 
 	## decrement progress unit if exists
-if $DECREMENT_PROGRESS; then
-	practice_info=$(grep -B1 -E "^$practice_title$" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
-	if test -n "$practice_info"; then
-		practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
-		practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
-		practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
-		if [ "$practice_unit" == "complete" ] || [ $(expr $practice_progress - 1) -lt 0 ]; then
-			echo -e "Resources are already complete for <$LIGHT_YELLOW$practice_title$DEFAULT>";
-			return;
+	if $DECREMENT_PROGRESS; then
+		if test -n "$practice_info"; then
+			if [ "$practice_unit" == "complete" ]; then
+				echo -e "completed progress for <$LIGHT_YELLOW$practice_title$DEFAULT> cannot be rolled back";
+			elif [ $practice_progress -le 0 ]; then
+				echo -e "Progress is already 0% on <$LIGHT_YELLOW$practice_title$DEFAULT>";
+				return;
+			fi
+			((practice_progress-1))
+			sed -i -rz "s/$practice_unit\ *$practice_progress\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $[practice_progress-1]\/$practice_total\1/" $source_file;
 		fi
-		sed -i -rz "s/$practice_unit\ *$practice_progress\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $(expr $practice_progress - 1)\/$practice_total\1/" $source_file;
 	fi
-fi
 
 }
 
@@ -503,7 +550,8 @@ make_ring() {
 }
 
 update_ring_list() {
-	ring_list=$(find $location -type f -name "cycle$cycle_number\_ring*_future.list" -exec basename {} \; | sort | xargs);
+	if $SELECTIVE_RING_OPTION; then ring_number_indicator=$SELECTED_RING; else ring_number_indicator=*; fi
+	ring_list=$(find $location -type f -name "cycle$cycle_number\_ring$ring_number_indicator\_future.list" -exec basename {} \; | sort | xargs);
 	
 }
 
@@ -658,12 +706,11 @@ create_score_file() {
 		-name "*.cxx" -o \
 		-name "*.hpp" -o \
 		-name "*.cpp" -o \
+		-name "*.cu" -o \
 		-name "*.c" -o \
 		-name "*.h" -o \
 		-name "*.s" -o \
-		-name "*.asm" -o \
-		-iname "makefile" -o \
-		-iname "cmakefile" \
+		-name "*.asm" \
 		> /tmp/score.log
 }
 
@@ -951,7 +998,7 @@ do
 			rm $practice_history_tree
 		fi
 
-		if $DEBUG; then echo -n $linedepth+$nextdepth; fi
+		if $DEBUG; then echo -n $linedepth\#$nextdepth; fi
 		echo -e $LIGHT_BLUE"$line"$DEFAULT | tee -a $practice_history_tree
 	# deeper topic
 	elif [ $topic -eq 0 ]
@@ -971,7 +1018,7 @@ do
 				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
 				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
 				-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
-				-e "s/\{\%([^\{\%]*)\%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput bold)/g"\
+				-e "s/\{%([^\{%]*)%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput bold)/g"\
 				&& tput sgr0
 			if [ $(echo "$line" | grep -Eo "\,$" | wc -l) -eq 1 ]; then
 				if $DEBUG; then echo -n " skipping "; fi
@@ -999,7 +1046,7 @@ fi
 }
 
 parse_option() {
-	case $1 in
+	case "$1" in
 	"-h"|"--help")
 		ACTIVITY_OPTIONS=true;
 		usage;
@@ -1009,27 +1056,27 @@ parse_option() {
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_DONE=true;
-		MARK_VALUE=$option_value;
+		MARK_VALUE="$option_value";
 		;;
 	"-d+")
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_DONE=true;
-		MARK_VALUE=$option_value;
+		MARK_VALUE="$option_value";
 		INCREMENT_PROGRESS=true;
 		;;
 	"-D-")
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_NOT_DONE=true;
-		MARK_NOT_VALUE=$option_value;
+		MARK_NOT_VALUE="$option_value";
 		DECREMENT_PROGRESS=true;
 		;;
 	"-D")
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_NOT_DONE=true;
-		MARK_NOT_VALUE=$option_value;
+		MARK_NOT_VALUE="$option_value";
 		;;
 	"--reset")
 		ACTIVITY_OPTIONS=true;
@@ -1049,7 +1096,7 @@ parse_option() {
 	"-P"|"--preference")
 		PAIR_OPTION=true;
 		PREFERENCE_OPTION=true;
-		PREFERENCE_VALUE=$option_value;
+		PREFERENCE_VALUE="$option_value";
 		;;
 	"-v"|"--version")
 		ACTIVITY_OPTIONS=true;
@@ -1059,7 +1106,7 @@ parse_option() {
 	"-l"|"--lookup")
 		PAIR_OPTION=true;
 		LOOKUP_OPTION=true;
-		LOOKUP_TEXT=$option_value;
+		LOOKUP_TEXT="$option_value";
 		;;
 	"-w"|"--write-note")
 		ACTIVITY_OPTIONS=true;
@@ -1069,11 +1116,11 @@ parse_option() {
 		ACTIVITY_OPTIONS=true;
 		CHECK_NOTE=true;
 		PAIR_OPTION=true;
-		note_number=$option_value;
+		note_number="$option_value";
 		;;
 	"--tab")
 		PAIR_OPTION=true;
-		TABSIZE=$option_value;
+		TABSIZE="$option_value";
 		TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
 		TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
 		;;
@@ -1092,6 +1139,10 @@ parse_option() {
 		ACTIVITY_OPTIONS=true;
 		CLOSE_CYCLE=true;
 		REORDER_OPTION=true;
+		;;
+	[1-9])
+		SELECTIVE_RING_OPTION=true;
+		SELECTED_RING=$1;
 		;;
 	*)
 		ACTIVITY_OPTIONS=true;
@@ -1112,8 +1163,8 @@ while [ $# -gt 0 ]; do
 	fi
 
 	# if option is not long then treat as short joint options; aka. -d11
-	if [ $(echo $1 | grep -Eo "^\-[a-zA-Z][a-zA-Z0-9].*$" | wc -l | cut -d' ' -f1) -gt 0 ]; then
-		script_option=$(echo $1 | sed 's/^\-//');
+	if [ $(echo "$1" | grep -Eo "^\-[a-zA-Z][a-zA-Z0-9].*$" | wc -l | cut -d' ' -f1) -gt 0 ]; then
+		script_option=$(echo "$1" | sed 's/^\-//');
 		option_length=$(echo $script_option | wc -c);
 		option_length=$(expr $option_length - 2);
 
@@ -1140,8 +1191,8 @@ while [ $# -gt 0 ]; do
 			((option_letter++)); # increment the pointer to next option character
 		done # done shifting between option characters (multiple options)
 	else # aka. --mark-done 11
-		option_value=$2;
-		parse_option $1 $option_value;
+		option_value="$2";
+		parse_option "$1" "$option_value";
 	fi
 	shift
 done # done shifting between arguments
@@ -1196,7 +1247,7 @@ fi
 if $MARK_DONE; then
 	make_practice;
 	if test -n "$MARK_VALUE"; then
-		mark_done $MARK_VALUE;
+		mark_done "$MARK_VALUE";
 	else
 		echo "practice number not specified";
 	fi
@@ -1205,7 +1256,7 @@ fi
 if $MARK_NOT_DONE; then
 	make_practice;
 	if test -n "$MARK_NOT_VALUE"; then
-		mark_not_done $MARK_NOT_VALUE;
+		mark_not_done "$MARK_NOT_VALUE";
 	else
 		echo "practice number not specified";
 	fi
