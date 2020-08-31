@@ -889,6 +889,8 @@ language_analyzer() {
 }
 
 score_practice() {
+if [ $ret -gt 0 ]; then return; fi
+
 if ! [ -d $practice_location ]; then
 	echo -e $BOLD"practice directory does not exist, creating"$DEFAULT
 	mkdir -p $practice_location
@@ -919,6 +921,7 @@ language_analyzer $(readlink $practice_location)
 }
 
 daily_practice() {
+ret=0
 # load from history
 if $RESET_OPTION
 then
@@ -939,8 +942,10 @@ if $LOOKUP_OPTION && [ -n "$LOOKUP_TEXT" ]; then
 
 	if [ $match_counter -eq 0 ]; then
 		echo -e $BOLD"No match found for \"$LOOKUP_TEXT\""$DEFAULT
+		ret=1
 		return
 	elif [ $match_counter -gt 1 ]; then
+		ret=2
 		echo -e $BOLD"Match ambiguity, choose:"$DEFAULT
 		echo "$match" | nl
 		read choice
@@ -948,7 +953,11 @@ if $LOOKUP_OPTION && [ -n "$LOOKUP_TEXT" ]; then
 	fi
 
 	if [ -n "$match" ]; then
+		ret=0
 		line_counter=$(awk "/$match/{ print NR; exit }" $practice_tree)
+	else
+		ret=1
+		return
 	fi
 
 elif [ -f $practice_history_file ] && ! $RESET_OPTION; then
@@ -999,7 +1008,7 @@ do
 		fi
 
 		# if lookup option used, only bring that specific practice and leave when finished
-		if $LOOKUP_OPTION && [ "$line" != "$match" ]; then break; fi
+		if $LOOKUP_OPTION && [ "$line" != "$match" ]; then ret=3; break; fi
 
 		if $DEBUG; then echo -n $linedepth\#$nextdepth; fi
 		echo -e $LIGHT_BLUE"$line"$DEFAULT | tee -a $practice_history_tree
@@ -1236,9 +1245,11 @@ fi
 if $PRACTICES_OPTION; then
 	trap "echo -e '\b\b\n'; score_practice; exit" SIGINT;
 	daily_practice;
-	echo;
-	echo -e $BLUE"Practice Complete!"$DEFAULT
-	score_practice
+	if [ $ret -eq 0 ]; then
+		echo;
+		echo -e $BLUE"Practice Complete!"$DEFAULT
+		score_practice
+	fi
 fi
 
 if $INSPECT_OPTION; then
