@@ -998,6 +998,9 @@ do
 			rm $practice_history_tree
 		fi
 
+		# if lookup option used, only bring that specific practice and leave when finished
+		if $LOOKUP_OPTION && [ "$line" != "$match" ]; then break; fi
+
 		if $DEBUG; then echo -n $linedepth\#$nextdepth; fi
 		echo -e $LIGHT_BLUE"$line"$DEFAULT | tee -a $practice_history_tree
 	# deeper topic
@@ -1233,6 +1236,9 @@ fi
 if $PRACTICES_OPTION; then
 	trap "echo -e '\b\b\n'; score_practice; exit" SIGINT;
 	daily_practice;
+	echo;
+	echo -e $BLUE"Practice Complete!"$DEFAULT
+	score_practice
 fi
 
 if $INSPECT_OPTION; then
