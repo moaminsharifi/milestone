@@ -748,7 +748,7 @@ zip was compiled with options not supported on this system
 			echo -e $GREEN"complete"$DEFAULT;
 			echo -e $BLUE"File: $location/$backup"$DEFAULT;
 			while read line; do filename=$(echo "$line" | cut -d' ' -f2); rm "$filename"; done < /tmp/score.log
-			find $practice_location/ -type f -executable ! -name score.sh -exec rm -f {} \;
+			find $practice_location/ -type f -exec rm -f {} \;
 		else
 			((ret++))
 			echo -e $BOLD"failed"$DEFAULT
