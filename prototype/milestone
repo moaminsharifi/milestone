@@ -736,16 +736,17 @@ zip could not open a specified file to read
 zip was compiled with options not supported on this system
 """
 
-	backup=$(date +%y-%m-%d)
-	if [ -f $location/$backup.zip ]; then zip_option="-u"; fi
-	backup_list=$(find $practice_location/ -mindepth 1 -maxdepth 1 -type d)
-	if [ -n "$backup_list" ]; then
-		echo "$backup_list" | zip -q -r $zip_option $location/$backup.zip -@
+	backup=practice-$(date +%Y-%m-%d).zip
+	zip_option="--quiet --recurse-paths"
+	if [ -f $location/$backup ]; then zip_option=$zip_option" --update"; fi
+	backup_list=$(find $practice_location/ -type f -not -executable -not -name "*~" -not -name "*.o")
+	if [ $(echo "$backup_list" | wc -l) -gt 0 ]; then
+		echo "$backup_list" | zip $zip_option $location/$backup -@
 		ret=$?
 		echo -ne $BLUE"Backing up previous practices: "$DEFAULT
 		if [ $ret -eq 0 ]; then
 			echo -e $GREEN"complete"$DEFAULT;
-			echo -e $BLUE"File: $location/$backup.zip"$DEFAULT;
+			echo -e $BLUE"File: $location/$backup"$DEFAULT;
 			while read line; do filename=$(echo "$line" | cut -d' ' -f2); rm "$filename"; done < /tmp/score.log
 			find $practice_location/ -type f -executable ! -name score.sh -exec rm -f {} \;
 		else
@@ -1008,10 +1009,10 @@ do
 		fi
 
 		# if lookup option used, only bring that specific practice and leave when finished
-		if $LOOKUP_OPTION && [ "$line" != "$match" ]; then ret=3; break; fi
+		if $LOOKUP_OPTION && [ "$line" != "$match" ]; then break; fi
 
 		if $DEBUG; then echo -n $linedepth\#$nextdepth; fi
-		echo -e $LIGHT_BLUE"$line"$DEFAULT | tee -a $practice_history_tree
+		echo -e $(tput setaf 39)"$line"$(tput sgr0) | tee -a $practice_history_tree
 	# deeper topic
 	elif [ $topic -eq 0 ]
 	then
@@ -1024,13 +1025,13 @@ do
 		elif [ $nextdepth -le $linedepth ]
 		then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -en $(tput bold)"$line" |\
+			echo -en $(tput setaf 82)"$line" |\
 			   	sed -r\
 				-e "s/\t/$TABSTRING/g"\
-				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
-				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
-				-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput setaf 8)$(tput dim)\[\2\3$(tput sgr0)$(tput bold)/"\
-				-e "s/\{%([^\{%]*)%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput bold)/g"\
+				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf 82)/"\
+				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf 82)/"\
+				-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf 82)/"\
+				-e "s/\{%([^\{%]*)%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput setaf 82)/g"\
 				&& tput sgr0
 			if [ $(echo "$line" | grep -Eo "\,$" | wc -l) -eq 1 ]; then
 				if $DEBUG; then echo -n " skipping "; fi
