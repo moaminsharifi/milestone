@@ -934,7 +934,7 @@ then
 fi
 
 if $LOOKUP_OPTION && [ -n "$LOOKUP_TEXT" ]; then
-	match=$(grep -Ei "^$LOOKUP_TEXT.*" $practice_tree)
+	match=$(awk -v title="$LOOKUP_TEXT" 'BEGIN{FS=RS; IGNORECASE=1} $1 ~ "^[^\t]*"title' $practice_tree)
 	match_counter=$(echo "$match" | grep -oE '^[^\t]' | wc -l)
 
 	if [ $match_counter -eq 0 ]; then
