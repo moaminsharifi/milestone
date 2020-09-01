@@ -741,7 +741,7 @@ zip was compiled with options not supported on this system
 	if [ -f $location/$backup ]; then zip_option=$zip_option" --update"; fi
 	backup_list=$(find $practice_location/ -type f -not -executable -not -name "*~" -not -name "*.o")
 	if [ $(echo "$backup_list" | wc -l) -gt 0 ]; then
-		echo "$backup_list" | zip $zip_option $location/$backup -@
+		echo "$backup_list" | zip $zip_option $location/$backup -@ &>/dev/null
 		ret=$?
 		echo -ne $BLUE"Backing up previous practices: "$DEFAULT
 		if [ $ret -eq 0 ]; then
