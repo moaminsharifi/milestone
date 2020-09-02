@@ -890,7 +890,7 @@ language_analyzer() {
 }
 
 score_practice() {
-if [ $ret -gt 0 ]; then return; fi
+if [ -n "$ret" ] && [ $ret -gt 0 ]; then return; fi
 
 if ! [ -d $practice_location ]; then
 	echo -e $BOLD"practice directory does not exist, creating"$DEFAULT
@@ -1060,95 +1060,95 @@ fi
 
 parse_option() {
 	case "$1" in
-	"-h"|"--help")
+	-h|--help)
 		ACTIVITY_OPTIONS=true;
 		usage;
 		return;
 		;;
-	"-d")
+	-d)
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_DONE=true;
 		MARK_VALUE="$option_value";
 		;;
-	"-d+")
+	-d+)
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_DONE=true;
 		MARK_VALUE="$option_value";
 		INCREMENT_PROGRESS=true;
 		;;
-	"-D-")
+	-D-)
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_NOT_DONE=true;
 		MARK_NOT_VALUE="$option_value";
 		DECREMENT_PROGRESS=true;
 		;;
-	"-D")
+	-D)
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_NOT_DONE=true;
 		MARK_NOT_VALUE="$option_value";
 		;;
-	"--reset")
+	--reset)
 		ACTIVITY_OPTIONS=true;
 		RESET_OPTION=true;
 		;;
-	"-r"|"--reorder")
+	-r|--reorder)
 		REORDER_OPTION=true;
 		;;
-	"-s"|"--score")
+	-s|--score)
 		ACTIVITY_OPTIONS=true;
 		SCORE_OPTION=true;
 		;;
-	"-p"|"--practices")
+	-p|--practices)
 		ACTIVITY_OPTIONS=true;
 		PRACTICES_OPTION=true;
 		;;
-	"-P"|"--preference")
+	-P|--preference)
 		PAIR_OPTION=true;
 		PREFERENCE_OPTION=true;
 		PREFERENCE_VALUE="$option_value";
 		;;
-	"-v"|"--version")
+	-v|--version)
 		ACTIVITY_OPTIONS=true;
 		echo $current_version;
 		return;
 		;;
-	"-l"|"--lookup")
+	-l|--lookup)
 		PAIR_OPTION=true;
 		LOOKUP_OPTION=true;
 		LOOKUP_TEXT="$option_value";
 		;;
-	"-w"|"--write-note")
+	-w|--write-note)
 		ACTIVITY_OPTIONS=true;
 		WRITE_NOTE_OPTION=true;
 		;;
-	"-n"|"--noted")
+	-n|--noted)
 		ACTIVITY_OPTIONS=true;
 		CHECK_NOTE=true;
 		PAIR_OPTION=true;
 		note_number="$option_value";
 		;;
-	"--tab")
+	--tab)
 		PAIR_OPTION=true;
 		TABSIZE="$option_value";
 		TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
 		TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
 		;;
-	"--verbose")
+	--verbose)
 		VERBOSE_OPTION=true;
 		;;
-	"--uninstall")
+	--uninstall)
 		ACTIVITY_OPTIONS=true;
 		UNINSTALL_OPTION=true;
 		return;
 		;;
-	"--debug")
+	--[dD]ebug)
 		DEBUG=true;
 		;;
-	"--restart")
+	--restart)
 		ACTIVITY_OPTIONS=true;
 		CLOSE_CYCLE=true;
 		REORDER_OPTION=true;
