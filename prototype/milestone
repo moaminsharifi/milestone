@@ -316,7 +316,7 @@ mark_done() {
 
 		if [ -n "$match" ]; then
 			PRACTICE_NUMBER=$(awk -v title="$match" 'BEGIN{FS="\t"} $2 == title {print $1}' $location/$cycle_file | sed 's/.* //')
-			echo -e "Practice $BOLD#$PRACTICE_NUMBER$DEFAULT <$LIGHT_YELLOW$match$DEFAULT> selected"$DEFAULT
+			echo -e "Selecting practice $BOLD#$PRACTICE_NUMBER$DEFAULT <$LIGHT_YELLOW$match$DEFAULT>"$DEFAULT
 		else
 			echo -e $BOLD"Failed to lookup practice"$DEFAULT
 			return
@@ -338,8 +338,11 @@ mark_done() {
 		if $already_done && ! $INCREMENT_PROGRESS; then
 			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> as$BOLD done$DEFAULT";
 		else
-			if $INCREMENT_PROGRESS; then
+			if $INCREMENT_PROGRESS && [ "$practice_unit" != "complete" ]; then
 				echo -e $GREEN"Raising$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> progress to $GREEN$practice_unit $[practice_progress+1]$DEFAULT $VIOLET($[$[practice_progress+1] * 100 / $practice_total]% - $[practice_progress+1] of $practice_total)$DEFAULT"
+			elif [ "$practice_unit" == "complete" ] || [ $practice_progress -eq 100 ]; then
+				echo -e "You already finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
+				return
 			else
 				echo -e "Marking <$LIGHT_YELLOW$practice_title$DEFAULT> as$GREEN done$DEFAULT"
 			fi
@@ -782,19 +785,19 @@ file_analyzer() {
 	case $file_extension in
 		asm|[sS]|sx)
 			language=Assembly
-			language_color=4 #blue
+			language_color=94 #blue
 			;;
 		[cC]|[hH]|i)
 			language=C
-			language_color=5 #magenta
+			language_color=236 # gray
 			;;
 		c++|cxx|[cC][pP][pP]|[hH][pP][pP]|hxx|cu|cc|ii|cp|hh|h++|tcc)
 			language=Cxx
-			language_color=1 #red
+			language_color=162 # pink
 			;;
 		sh)
 			language=Shell
-			language_color=2 #green
+			language_color=119 # light green
 			;;
 		java|jar)
 			language=Java
@@ -802,15 +805,15 @@ file_analyzer() {
 			;;
 		py)
 			language=Python
-			language_color=6 #cyan
+			language_color=25 #cyan
 			;;
 		html|htm|[a-z]html)
 			language=HTML
-			language_color=1 #red
+			language_color=202 # orange
 			;;
 		js)
 			language=JavaScript
-			language_color=3 #yellow
+			language_color=226 # light yellow
 			;;
 		css)
 			language=Css
@@ -818,7 +821,7 @@ file_analyzer() {
 			;;
 		tex)
 			language=TeX
-			language_color=2 #green
+			language_color=22 # dark green
 			;;
 		*)
 			# ignore unknown languages
