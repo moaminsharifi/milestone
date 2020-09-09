@@ -68,7 +68,6 @@ DECREMENT_PROGRESS=false;
 PRACTICES_OPTION=false;
 DEBUG=false
 SCORE_OPTION=false;
-LOOKUP_OPTION=false;
 LOOKUP_TEXT=;
 TABSIZE=4
 TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
@@ -111,37 +110,43 @@ STRIKE_THROUGH="\e[9m"
 STRIKE_THROUGH_ESCAPED="\\\e\[9m"
 
 usage() {
-	echo -e $BOLD"** Milestone Prototype **"$DEFAULT
+	echo -e "Milestone Prototype"$DEFAULT
 	echo
+	tput bold
 	echo -e "General Options"
+	tput sgr0
+	echo "    -h, --help        show help"
+	echo "    -r, --reorder     reorder cycle"
+	echo "    -v, --version     show program version"
+	echo "    --reset           reset cycle and start over"
+	echo "    --debug           enable debugging option"
+	echo "    --uninstall       uninstall milestone"
 	echo
-	echo "-h, --help        show help"
-	echo "-r, --reorder     reorder cycle"
-	echo "-v, --version     show program version"
-	echo "--reset           reset cycle and start over"
-	echo "--debug           enable debugging option"
-	echo "--uninstall       uninstall milestone"
-	echo
+	tput bold
 	echo "Practice Options"
+	tput sgr0
+	echo "    -p, --practices   begin practice routine"
+	echo "    -s, --score       score practice"
+	echo "    -w, --write-notes write daily note objectives"
+	echo "    --tab N           adjust tab size for practices, default=4"
 	echo
-	echo "-p, --practices   begin practicing"
-	echo "-l <s>, --lookup  lookup practice title and continue"
-	echo "-s, --score       score last practice"
-	echo "-w, --write-notes write daily note objectives"
-	echo "-n, --notes       list notes"
-	echo "--tab <n>         adjust tab size, default=4"
+	tput dim
+	echo "    practice name or number is required for following options as option values"
+	tput sgr0
+	echo "    -q, --query       query practice"
+	echo "    -n, --notes       list notes"
 	echo
-	echo "Query Options"
-	echo
-	echo "-q <s>, --query   query practice by name"
-	echo
+	tput bold
 	echo "Editing Options"
-	echo
-	echo "-d <n>            mark as done"
-	echo "-d+ <n>           mark as done and increment progress"
-	echo "-dn <n>           mark note as done"
-	echo "-D <n>            mark as not done"
-	echo "-D+ <n>           mark as not done and decrement progress"
+	tput sgr0
+	tput dim
+	echo "    practice name or number is required for following options as option values"
+	tput sgr0
+	echo "    -d                mark practice as done"
+	echo "    -d+               mark practice as done and increment progress"
+	echo "    -dn               check note"
+	echo "    -D                mark practice as not done"
+	echo "    -D+               mark practice as not done and decrement progress"
 	echo
 }
 
@@ -355,7 +360,16 @@ get_practice_info() {
 	practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
 	practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
 
-	echo -e "<$LIGHT_YELLOW$practice_title$DEFAULT> $GREEN$practice_unit $practice_progress of $practice_total$DEFAULT $VIOLET($[$practice_progress * 100 / $practice_total]%)$DEFAULT"
+	if [ -z "$practice_progress" ] || [ -z "$practice_total" ]; then
+		tput bold
+		echo "error representing progress"
+		tput sgr0
+		echo "info: $practice_info"
+	else
+		echo -ne "<$LIGHT_YELLOW$practice_title$DEFAULT> $GREEN$practice_unit"
+		echo -ne " $practice_progress of $practice_total$DEFAULT"
+		echo -e " $VIOLET($[$practice_progress * 100 / $practice_total]%)$DEFAULT"
+	fi
 }
 
 mark_done() {
@@ -956,7 +970,7 @@ then
 	fi
 fi
 
-if $LOOKUP_OPTION && [ -n "$LOOKUP_TEXT" ]; then
+if [ -n "$LOOKUP_TEXT" ]; then
 	match=$(awk -v title="$LOOKUP_TEXT" 'BEGIN{FS=RS; IGNORECASE=1} $1 ~ "^[^\t]*"title' $practice_tree)
 	match_counter=$(echo "$match" | grep -oE '^[^\t]' | wc -l)
 
@@ -1028,7 +1042,7 @@ do
 		fi
 
 		# if lookup option used, only bring that specific practice and leave when finished
-		if $LOOKUP_OPTION && [ "$line" != "$match" ]; then break; fi
+		if [ -n "$LOOKUP_TEXT" ] && [ "$line" != "$match" ]; then break; fi
 
 		if $DEBUG; then echo -n $linedepth\#$nextdepth; fi
 		echo -e $(tput setaf 39)"$line"$(tput sgr0) | tee -a $practice_history_tree
@@ -1130,6 +1144,8 @@ parse_option() {
 	-p|--practices)
 		ACTIVITY_OPTIONS=true;
 		PRACTICES_OPTION=true;
+		PAIR_OPTION=true;
+		LOOKUP_TEXT="$option_value";
 		;;
 	-P|--preference)
 		PAIR_OPTION=true;
@@ -1140,11 +1156,6 @@ parse_option() {
 		ACTIVITY_OPTIONS=true;
 		echo $current_version;
 		return;
-		;;
-	-l|--lookup)
-		PAIR_OPTION=true;
-		LOOKUP_OPTION=true;
-		LOOKUP_TEXT="$option_value";
 		;;
 	-w|--write-notes)
 		ACTIVITY_OPTIONS=true;
