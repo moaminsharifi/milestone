@@ -78,6 +78,7 @@ CHECK_NOTE=false;
 CLOSE_CYCLE=false;
 SELECTIVE_RING_OPTION=false;
 QUERY_OPTION=false;
+LIST_NOTES=false;
 
 # color codes
 DARK="\e[30m"
@@ -126,8 +127,8 @@ usage() {
 	echo "-p, --practices   begin practicing"
 	echo "-l <s>, --lookup  lookup practice title and continue"
 	echo "-s, --score       score last practice"
-	echo "-w, --write-note  write daily note objectives"
-	echo "-n <n>, --noted   check note, makes note disappear"
+	echo "-w, --write-notes write daily note objectives"
+	echo "-n, --notes       list notes"
 	echo "--tab <n>         adjust tab size, default=4"
 	echo
 	echo "Query Options"
@@ -138,6 +139,7 @@ usage() {
 	echo
 	echo "-d <n>            mark as done"
 	echo "-d+ <n>           mark as done and increment progress"
+	echo "-dn <n>           mark note as done"
 	echo "-D <n>            mark as not done"
 	echo "-D+ <n>           mark as not done and decrement progress"
 	echo
@@ -234,6 +236,16 @@ show_daily_note() {
 		echo -e $LIGHT_CYAN"Daily Notes"$DEFAULT; echo;
 		nl $location/daily_note | column
 		echo
+	fi
+}
+
+list_notes() {
+	if [ -f $location/daily_note ]; then
+		show_daily_note
+	else
+		tput bold
+		echo "Note list empty"
+		tput sgr0
 	fi
 }
 
@@ -1078,6 +1090,12 @@ parse_option() {
 		MARK_DONE=true;
 		MARK_VALUE="$option_value";
 		;;
+	-dn)
+		ACTIVITY_OPTIONS=true;
+		CHECK_NOTE=true;
+		PAIR_OPTION=true;
+		note_number="$option_value";
+		;;
 	-d+)
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
@@ -1128,15 +1146,13 @@ parse_option() {
 		LOOKUP_OPTION=true;
 		LOOKUP_TEXT="$option_value";
 		;;
-	-w|--write-note)
+	-w|--write-notes)
 		ACTIVITY_OPTIONS=true;
 		WRITE_NOTE_OPTION=true;
 		;;
-	-n|--noted)
+	-n|--notes)
 		ACTIVITY_OPTIONS=true;
-		CHECK_NOTE=true;
-		PAIR_OPTION=true;
-		note_number="$option_value";
+		LIST_NOTES=true;
 		;;
 	-q|--query)
 		ACTIVITY_OPTIONS=true;
@@ -1250,6 +1266,10 @@ fi
 
 if $CHECK_NOTE; then
 	check_note
+fi
+
+if $LIST_NOTES; then
+	list_notes
 fi
 
 if $SCORE_OPTION; then
