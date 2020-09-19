@@ -283,7 +283,7 @@ show_cycle() {
 		last_cycle_day=$vtime;
 	fi
 	last_cycle_day=$(date +%s -d "$vtime");
-	cycle_day=$(echo "(($last_cycle_day - $first_cycle_day) / 60 / 60 / 24) + 1" | bc);
+	cycle_day=$[$[$[last_cycle_day - first_cycle_day] / 60 / 60 / 24] + 1];
 	TOTAL_TASKS=$(cat $location/$cycle_file | sed '/^\ *$/d' | wc -l);
 	DONE_COUNT=$(grep -o "\-\-" $location/$cycle_file | wc -l);
 	cycle_percentage=$(expr $DONE_COUNT \* 100 \/ $TOTAL_TASKS);
@@ -305,7 +305,7 @@ show_cycle() {
 		ring_start_day=$(date +%s -d "$vtime");
 		custom_vtime $ring_end_day;
 		ring_end_day=$(date +%s -d "$vtime");
-		ring_day=$(echo "(($ring_end_day - $ring_start_day) / 60 / 60 / 24) + 1" | bc);
+		ring_day=$[$[$[ring_end_day - ring_start_day] / 60 / 60 / 24] + 1];
 		ring_total=$(cat $location/$ring_file | sed '/^\ *$/d' | wc -l);
 		ring_done=$(grep -o "\-\-" $location/$ring_file | wc -l);
 		ring_percentage=$(expr $ring_done \* 100 \/ $ring_total);
@@ -321,6 +321,7 @@ show_disabled_goals() {
 }
 
 query_practice() {
+	no_output=true
 	if echo "$1" | grep -qE '^[0-9]+$'; then # $1 is numeric
 		PRACTICE_NUMBER=$1;
 	else # $1 is not numeric
@@ -339,7 +340,9 @@ query_practice() {
 
 		if [ -n "$match" ]; then
 			PRACTICE_NUMBER=$(awk -v title="$match" 'BEGIN{FS="\t"} $2 == title {print $1}' $location/$cycle_file | sed 's/.* //')
-			echo -e "Selecting practice $BOLD#$PRACTICE_NUMBER$DEFAULT <$LIGHT_YELLOW$match$DEFAULT>"$DEFAULT
+			if ! $no_output; then
+				echo -e "Selecting practice $BOLD#$PRACTICE_NUMBER$DEFAULT <$LIGHT_YELLOW$match$DEFAULT>"$DEFAULT
+			fi
 		else
 			echo -e $BOLD"Failed to lookup practice"$DEFAULT
 			exit
@@ -1098,33 +1101,35 @@ parse_option() {
 		usage;
 		return;
 		;;
-	-d)
+	-d|--done)
+		echo damn
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_DONE=true;
 		MARK_VALUE="$option_value";
 		;;
-	-dn)
+	-dn|--check-note)
+		echo ok
 		ACTIVITY_OPTIONS=true;
 		CHECK_NOTE=true;
 		PAIR_OPTION=true;
 		note_number="$option_value";
 		;;
-	-d+)
+	-d+|--set-progress)
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_DONE=true;
 		MARK_VALUE="$option_value";
 		INCREMENT_PROGRESS=true;
 		;;
-	-D-)
+	-D-|--revert-progress)
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_NOT_DONE=true;
 		MARK_NOT_VALUE="$option_value";
 		DECREMENT_PROGRESS=true;
 		;;
-	-D)
+	-D|--not-done)
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_NOT_DONE=true;
@@ -1216,7 +1221,7 @@ while [ $# -gt 0 ]; do
 	fi
 
 	# if option is not long then treat as short joint options; aka. -d11
-	if [ $(echo "$1" | grep -Eo "^\-[a-zA-Z][a-zA-Z0-9].*$" | wc -l | cut -d' ' -f1) -gt 0 ]; then
+	if [ $(echo "$1" | grep -Eo "^\--[a-zA-Z][a-zA-Z0-9].*$" | wc -l | cut -d' ' -f1) -gt 0 ]; then
 		script_option=$(echo "$1" | sed 's/^\-//');
 		option_length=$(echo $script_option | wc -c);
 		option_length=$(expr $option_length - 2);
