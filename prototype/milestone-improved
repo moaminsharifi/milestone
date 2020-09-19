@@ -1,0 +1,156 @@
+#!/bin/bash
+
+#*******************************************************************************
+# Global variables used for options
+tab_size=4
+no_color_option=false
+
+#*******************************************************************************
+# Functions
+
+## description: outputs string with style and color
+## usage: show [style/color] [string] ... [string]
+## style list: bold normal italic strike-through blink
+## color list: black red green yellow blue magenta cyan white
+show() {
+	local output_style=sgr0
+	local output_color=
+	while true; do
+		case $1 in
+			bold)
+				output_style=$1
+				;;
+			normal)
+				output_style=sgr0
+				;;
+			italic)
+				output_style=sgr0
+				;;
+			strike-through)
+				output_style=sgr0
+				;;
+			blink)
+				output_style=sgr0
+				;;
+			black)
+				output_color=0
+				;;
+			red)
+				output_color=1
+				;;
+			green)
+				output_color=2
+				;;
+			yellow)
+				output_color=3
+				;;
+			blue)
+				output_color=4
+				;;
+			magenta)
+				output_color=5
+				;;
+			cyan)
+				output_color=6
+				;;
+			white)
+				output_color=7
+				;;
+			*)
+				break
+		esac
+		shift
+	done
+	
+	# concatenate string arguments
+	local output_string=$1
+	shift
+	while [ $# -gt 0 ]; do
+		output_string="$output_string $1"
+		shift
+	done
+
+	# set output style first, then coloring
+	tput $output_style
+
+	if [ -n "$output_color" ] && ! $no_color_option; then
+		tput setaf $output_color
+	fi
+
+	echo -e "$output_string"
+	tput sgr0
+}
+
+usage() {
+	show blue "milestone help"
+	exit
+}
+
+usage_error() {
+	show bold "milestone error"
+}
+
+version() {
+	show "Milestone v0.0.1"
+	exit
+}
+
+#*******************************************************************************
+# Options Parser
+if [ $# -eq 0 ]; then
+	usage
+fi
+
+while [ $# -gt 0 ]; do
+	case $1 in
+		# general options
+		-h|--help)
+			usage
+			;;
+		-v|--version)
+			version
+			;;
+		# practice options
+		-q|--query)
+			query_option=true
+			;;
+		-s|--score)
+			score_option=true
+			;;
+		# note options
+		-w|--write-notes)
+			write_note_option=true
+			;;
+		-n|--list-notes)
+			list_note_option=true
+			;;
+		-c|--check-note)
+			check_node_option=true
+			;;
+		# editing options
+		-d|--done|--mark-done)
+			mark_done_option=true
+			;;
+		-D|--undone|--mark-not_done)
+			mark_undone_option=true
+			;;
+		-p|--progress|--set-progress)
+			progress_option=true
+			;;
+		# adjustment options
+		-t|--tab|--tab-size)
+			tab_size=$2
+			;;
+		--no-color)
+			no_color_option=true
+			;;
+		--debug)
+			debug_option=true
+			;;
+		*)
+			show bold "Invalid option!"
+			usage
+			;;
+	esac
+	shift
+done
