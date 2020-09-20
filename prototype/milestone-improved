@@ -15,6 +15,7 @@ no_color_option=false
 show() {
 	local output_style=sgr0
 	local output_color=
+	local inline_style=false
 	while true; do
 		case $1 in
 			bold)
@@ -28,6 +29,12 @@ show() {
 				;;
 			strike-through)
 				output_style=sgr0
+				;;
+			dim)
+				output_style=$1
+				;;
+			inline)
+				inline_style=true
 				;;
 			blink)
 				output_style=sgr0
@@ -77,22 +84,60 @@ show() {
 		tput setaf $output_color
 	fi
 
-	echo -e "$output_string"
+	local echo_option=-e
+	if $inline_style; then
+		echo_option=-ne
+	fi
+
+	echo $echo_option "$output_string"
 	tput sgr0
 }
 
+version() {
+	show "Milestone v0.0.1 (beta)"
+}
+
 usage() {
-	show blue "milestone help"
-	exit
+	version
+	show
+	show bold "General Options"
+	show
+	show blue inline "-h, --help "
+	show "get help and usage"
+	show blue inline "-v, --version "
+	show "get current milestone version"
+	show blue inline "-t [size=4], --tab, --tab-size "
+	show "set tab size in milestone output"
+	show blue inline "--no-color "
+	show "disable output coloring"
+	show blue inline "--debug "
+	show "enable debug mode"
+	show
+	show bold "Note Options"
+	show
+	show blue inline "-w, --write-notes "
+	show "write daily notes"
+	show blue inline "-n [note number], --list-notes "
+	show "list daily notes"
+	show blue inline "-c [note number], --check-note "
+	show "check note in list"
+	show
+	show bold "Practice Options"
+	show
+	show blue inline "-q [practice name], --query "
+	show "query practice"
+	show blue inline "-d [practice name], --done, --mark-done "
+	show "mark practice as done"
+	show blue inline "-D [practice name], --undone, --mark-not_done "
+	show "mark practice as not done"
+	show blue inline "-p [-/+ progress=1] [practice name], --progress, --set-progress "
+	show "record progress on practice"
+	show blue inline "-s, --score "
+	show "see current score of practices"
 }
 
 usage_error() {
 	show bold "milestone error"
-}
-
-version() {
-	show "Milestone v0.0.1"
-	exit
 }
 
 #*******************************************************************************
@@ -106,9 +151,11 @@ while [ $# -gt 0 ]; do
 		# general options
 		-h|--help)
 			usage
+			exit
 			;;
 		-v|--version)
 			version
+			exit
 			;;
 		# practice options
 		-q|--query)
@@ -150,6 +197,7 @@ while [ $# -gt 0 ]; do
 		*)
 			show bold "Invalid option!"
 			usage
+			exit
 			;;
 	esac
 	shift
