@@ -183,11 +183,11 @@ show_practices() {
 				progress="$VIOLET";
 			fi
 
-			if [ $percentage -eq 100 ]; then
-				progress="$progress (complete)$DEFAULT";
-			else
-				progress="$progress ($percentage% - $practice_unit $practice_progress of $practice_total)$DEFAULT";
-			fi
+			#if [ $percentage -eq 100 ]; then
+			#	progress="$progress (complete)$DEFAULT";
+			#else
+			#	progress="$progress ($percentage% - $practice_unit $practice_progress of $practice_total)$DEFAULT";
+			#fi
 		else
 			practice_unit=;
 			practice_progress=;
@@ -202,9 +202,9 @@ show_practices() {
 		fi
 
 		printf "%6s\t" $practice_number;
-		echo -e "$bash_seq$practice_title$DEFAULT$progress";
+		echo -e "$bash_seq$practice_title$DEFAULT";
 
-	done <<< $(cat $1) | column;
+	done <<< $(cat $1);
 	echo;
 }
 
@@ -1102,14 +1102,12 @@ parse_option() {
 		return;
 		;;
 	-d|--done)
-		echo damn
 		ACTIVITY_OPTIONS=true;
 		PAIR_OPTION=true;
 		MARK_DONE=true;
 		MARK_VALUE="$option_value";
 		;;
 	-dn|--check-note)
-		echo ok
 		ACTIVITY_OPTIONS=true;
 		CHECK_NOTE=true;
 		PAIR_OPTION=true;
