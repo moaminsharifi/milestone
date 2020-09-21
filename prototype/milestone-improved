@@ -10,18 +10,28 @@ no_color_option=false
 
 ## description: outputs string with style and color
 ## usage: show [style/color] [string] ... [string]
-## style list: bold normal italic strike-through blink
+## style list: bold normal default italic strike-through blink
 ## color list: black red green yellow blue magenta cyan white
+## note: only the last attribute in consecutive attributes is affected
 show() {
 	local output_style=sgr0
 	local output_color=
-	local inline_style=false
-	while true; do
+	local echo_option=-e
+
+	# empty show will only print newline
+	if [ $# -eq 0 ]; then
+		echo
+		return
+	fi
+	
+	# attributes are interpreted before or between strings
+	# FIXME: make a way to interpret attributes as strings when needed
+	while [ $# -gt 0 ]; do
 		case $1 in
 			bold)
 				output_style=$1
 				;;
-			normal)
+			normal|default)
 				output_style=sgr0
 				;;
 			italic)
@@ -34,7 +44,7 @@ show() {
 				output_style=$1
 				;;
 			inline)
-				inline_style=true
+				echo_option=-ne
 				;;
 			blink)
 				output_style=sgr0
@@ -64,32 +74,23 @@ show() {
 				output_color=7
 				;;
 			*)
-				break
+				# set output style first, then coloring
+				tput $output_style
+				if [ -n "$output_color" ] && ! $no_color_option; then
+					tput setaf $output_color
+				fi
+
+				echo $echo_option "$1"
+
+				# reset all attributes for next string
+				output_style=sgr0
+				output_color=
+				echo_option=-e
+				;;
 		esac
 		shift
 	done
-	
-	# concatenate string arguments
-	local output_string=$1
-	shift
-	while [ $# -gt 0 ]; do
-		output_string="$output_string $1"
-		shift
-	done
-
-	# set output style first, then coloring
-	tput $output_style
-
-	if [ -n "$output_color" ] && ! $no_color_option; then
-		tput setaf $output_color
-	fi
-
-	local echo_option=-e
-	if $inline_style; then
-		echo_option=-ne
-	fi
-
-	echo $echo_option "$output_string"
+	# reset to defaults
 	tput sgr0
 }
 
@@ -130,7 +131,8 @@ usage() {
 	show "mark practice as done"
 	show blue inline "-D [practice name], --undone, --mark-not_done "
 	show "mark practice as not done"
-	show blue inline "-p [-/+ progress=1] [practice name], --progress, --set-progress "
+	show blue inline "-p [-/+ progress=1] [practice name],"
+   	show blue inline " --progress, --set-progress "
 	show "record progress on practice"
 	show blue inline "-s, --score "
 	show "see current score of practices"
