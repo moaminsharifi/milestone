@@ -10,13 +10,17 @@ no_color_option=false
 
 ## description: outputs string with style and color
 ## usage: show [style/color] [string] ... [string]
-## style list: bold normal default italic strike-through blink
+## style list:
+##     default normal bold italic strike-through blink
+##     inline newline space align
 ## color list: black red green yellow blue magenta cyan white
 ## note: only the last attribute in consecutive attributes is affected
+## note: inline and newline attributes affect the whole line
+## note: to align next lines, use &align in string
 show() {
 	local output_style=sgr0
 	local output_color=
-	local echo_option=-e
+	local trailing_newline=true
 
 	# empty show will only print newline
 	if [ $# -eq 0 ]; then
@@ -28,11 +32,13 @@ show() {
 	# FIXME: make a way to interpret attributes as strings when needed
 	while [ $# -gt 0 ]; do
 		case $1 in
+			# styles
 			bold)
 				output_style=$1
 				;;
 			normal|default)
 				output_style=sgr0
+				output_color=
 				;;
 			italic)
 				output_style=sgr0
@@ -44,11 +50,23 @@ show() {
 				output_style=$1
 				;;
 			inline)
-				echo_option=-ne
+				trailing_newline=false
+				;;
+			newline)
+				echo
 				;;
 			blink)
 				output_style=sgr0
 				;;
+			space)
+				echo -n " "
+				;;
+			align)
+				if [ $alignment_position -gt 0 ]; then
+					printf "%.0s " $(seq 2 $alignment_position)
+				fi
+				;;
+			# colors
 			black)
 				output_color=0
 				;;
@@ -73,6 +91,7 @@ show() {
 			white)
 				output_color=7
 				;;
+			# string
 			*)
 				# set output style first, then coloring
 				tput $output_style
@@ -80,16 +99,27 @@ show() {
 					tput setaf $output_color
 				fi
 
-				echo $echo_option "$1"
+				# store alignment position globally for next function execution
+				local margin=$(awk -F"&align" '{print $1}' <<< $1 | wc -m)
+				local output_string=$1
+				if [ $margin -lt ${#1} ]; then
+					alignment_position=$margin
+					output_string=$(sed 's/\&align//g' <<< $1)
+				elif [ -z "$alignment_position" ]; then
+					alignment_position=0
+				fi
 
-				# reset all attributes for next string
-				output_style=sgr0
-				output_color=
-				echo_option=-e
+				echo -ne "$output_string"
 				;;
 		esac
 		shift
 	done
+	
+	# trailing newline is set unless inline attribute given
+	if $trailing_newline; then
+		echo
+	fi
+
 	# reset to defaults
 	tput sgr0
 }
@@ -103,39 +133,31 @@ usage() {
 	show
 	show bold "General Options"
 	show
-	show blue inline "-h, --help "
-	show "get help and usage"
-	show blue inline "-v, --version "
-	show "get current milestone version"
-	show blue inline "-t [size=4], --tab, --tab-size "
-	show "set tab size in milestone output"
-	show blue inline "--no-color "
-	show "disable output coloring"
-	show blue inline "--debug "
-	show "enable debug mode"
+	show blue "-h, --help" space normal "get help and usage"
+	show blue "-v, --version" space normal "get current milestone version"
+	show blue inline "-t [size=4], --tab, --tab-size"
+	show space "set tab size in milestone output"
+	show blue "--no-color" space normal "disable output coloring"
+	show blue "--debug" space normal "enable debug mode"
 	show
 	show bold "Note Options"
 	show
-	show blue inline "-w, --write-notes "
-	show "write daily notes"
-	show blue inline "-n [note number], --list-notes "
-	show "list daily notes"
-	show blue inline "-c [note number], --check-note "
-	show "check note in list"
+	show blue "-w, --write-notes" space normal "write daily notes"
+	show blue "-n [note number], --list-notes" space normal "list daily notes"
+	show blue inline "-c [note number], --check-note"
+	show space "check note in list"
 	show
 	show bold "Practice Options"
 	show
-	show blue inline "-q [practice name], --query "
-	show "query practice"
-	show blue inline "-d [practice name], --done, --mark-done "
-	show "mark practice as done"
-	show blue inline "-D [practice name], --undone, --mark-not_done "
-	show "mark practice as not done"
+	show blue "-q [practice name], --query" space normal "query practice"
+	show blue inline "-d [practice name], --done, --mark-done"
+	show space "mark practice as done"
+	show blue inline "-D [practice name], --undone, --mark-not_done"
+	show space "mark practice as not done"
 	show blue inline "-p [-/+ progress=1] [practice name],"
-   	show blue inline " --progress, --set-progress "
-	show "record progress on practice"
-	show blue inline "-s, --score "
-	show "see current score of practices"
+   	show blue inline space "--progress, --set-progress"
+	show space "record progress on practice"
+	show blue "-s, --score" space normal "see current score of practices"
 }
 
 usage_error() {
