@@ -37,3 +37,14 @@ Cxx Programming Language
 ```
 
 The lowest level branches are considered as practices, the top levels as categories.
+
+## Milestone-Improved Objectives
+
+* Database storage
+* Online Synchronization and accounting
+* Milestone daemon as client service
+* Milestone server
+* Standardized roadmap structure
+* Standardized practice structure
+* Basic GUI
+* Milestone configuration file
