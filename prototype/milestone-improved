@@ -29,68 +29,36 @@ show() {
 	fi
 	
 	# attributes are interpreted before or between strings
-	# FIXME: make a way to interpret attributes as strings when needed
+	# FIXME: interpret attribute as string when needed
 	while [ $# -gt 0 ]; do
 		case $1 in
 			# styles
-			bold)
-				output_style=$1
-				;;
+			bold) output_style=$1 ;;
 			normal|default)
 				output_style=sgr0
 				output_color=
 				;;
-			italic)
-				output_style=sgr0
-				;;
-			strike-through)
-				output_style=sgr0
-				;;
-			dim)
-				output_style=$1
-				;;
-			inline)
-				trailing_newline=false
-				;;
-			newline)
-				echo
-				;;
-			blink)
-				output_style=sgr0
-				;;
-			space)
-				echo -n " "
-				;;
+			italic) output_style=sgr0 ;;
+			strike-through) output_style=sgr0 ;;
+			dim) output_style=$1 ;;
+			inline) trailing_newline=false ;;
+			newline) echo ;;
+			blink) output_style=sgr0 ;;
+			space) echo -n " " ;;
 			align)
 				if [ $alignment_position -gt 0 ]; then
 					printf "%.0s " $(seq 2 $alignment_position)
 				fi
 				;;
 			# colors
-			black)
-				output_color=0
-				;;
-			red)
-				output_color=1
-				;;
-			green)
-				output_color=2
-				;;
-			yellow)
-				output_color=3
-				;;
-			blue)
-				output_color=4
-				;;
-			magenta)
-				output_color=5
-				;;
-			cyan)
-				output_color=6
-				;;
-			white)
-				output_color=7
-				;;
+			black) output_color=0 ;;
+			red) output_color=1 ;;
+			green) output_color=2 ;;
+			yellow) output_color=3 ;;
+			blue) output_color=4 ;;
+			magenta) output_color=5 ;;
+			cyan) output_color=6 ;;
+			white) output_color=7 ;;
 			# string
 			*)
 				# set output style first, then coloring
@@ -116,9 +84,7 @@ show() {
 	done
 	
 	# trailing newline is set unless inline attribute given
-	if $trailing_newline; then
-		echo
-	fi
+	if $trailing_newline; then echo; fi
 
 	# reset to defaults
 	tput sgr0
