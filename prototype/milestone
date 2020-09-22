@@ -735,10 +735,10 @@ fi
 
 create_score_file() {
 	## remove swap files
-	find $practice_location/ -type f -name "*~" -exec rm -f {} \;
+	find $practice_location -type f -name "*~" -exec rm -f {} \;
 
 	# list practice files
-	find $practice_location/ -type f\
+	find $practice_location -type f\
 		! -executable \
 		-name "*.py" -o \
 		-name "*.cxx" -o \
@@ -931,35 +931,35 @@ language_analyzer() {
 }
 
 score_practice() {
-if [ -n "$ret" ] && [ $ret -gt 0 ]; then return; fi
+	if [ -n "$ret" ] && [ $ret -gt 0 ]; then return; fi
 
-if ! [ -d $practice_location ]; then
-	echo -e $BOLD"practice directory does not exist, creating"$DEFAULT
-	mkdir -p $practice_location
-fi
+	if ! [ -d $practice_location ]; then
+		echo -e $BOLD"practice directory does not exist, creating"$DEFAULT
+		mkdir -p $practice_location
+	fi
 
-create_score_file
-score_files=$(wc -l /tmp/score.log | cut -d' ' -f1)
+	create_score_file
+	score_files=$(wc -l /tmp/score.log | cut -d' ' -f1)
 
-if [ $score_files -eq 0 ]; then
-	echo -e $BLUE"Score: 0"$DEFAULT
-elif [ $score_files -eq 1 ]; then
-	only_score=$(wc -l $(cat /tmp/score.log))
-	score=$(echo $only_score | cut -d' ' -f1)
-	score_file=$(echo $only_score | cut -d' ' -f2-)
-	echo -e $BLUE"Score: $score"$DEFAULT
-	echo -e $BLUE"File: $score_file"$DEFAULT
-elif $VERBOSE_OPTION && [ $score_files -gt 1 ]; then
-	score=$(wc -l $(cat /tmp/score.log) | grep total)
-	echo -e $BLUE"Score: $score "$DEFAULT
-	echo -e $BLUE"Files located in: $practice_location\n"
-	wc -l $(cat /tmp/score.log) | head -n-1 | sed s,$practice_location,...,
-	echo -e $DEFAULT
-else
-	score=$(wc -l $(cat /tmp/score.log) | grep total)
-	echo -e $BLUE"Score: $score "$DEFAULT
-fi
-language_analyzer $(readlink $practice_location)
+	if [ $score_files -eq 0 ]; then
+		echo -e $BLUE"Score: 0"$DEFAULT
+	elif [ $score_files -eq 1 ]; then
+		only_score=$(wc -l $(cat /tmp/score.log))
+		score=$(echo $only_score | cut -d' ' -f1)
+		score_file=$(echo $only_score | cut -d' ' -f2-)
+		echo -e $BLUE"Score: $score"$DEFAULT
+		echo -e $BLUE"File: $score_file"$DEFAULT
+	elif $VERBOSE_OPTION && [ $score_files -gt 1 ]; then
+		score=$(wc -l $(cat /tmp/score.log) | grep total)
+		echo -e $BLUE"Score: $score "$DEFAULT
+		echo -e $BLUE"Files located in: $practice_location\n"
+		wc -l $(cat /tmp/score.log) | head -n-1 | sed s,$practice_location,...,
+		echo -e $DEFAULT
+	else
+		score=$(wc -l $(cat /tmp/score.log) | grep total)
+		echo -e $BLUE"Score: $score "$DEFAULT
+	fi
+	language_analyzer $practice_location
 }
 
 daily_practice() {
