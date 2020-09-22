@@ -2,7 +2,7 @@
 
 current_version="v0.7.8"
 location=~/.local/share/milestone
-practice_location=~/.local/share/practices
+practice_location=$(readlink ~/.local/share/practices)
 source_file=~/.milestone
 practice_tree=~/.practices
 practice_history_file=~/.practice.history
@@ -116,9 +116,10 @@ usage() {
 	echo -e "General Options"
 	tput sgr0
 	echo "    -h, --help        show help"
-	echo "    -r, --reorder     reorder cycle"
+	echo "    --reorder     reorder cycle"
+	echo "    --restart         close cycles and start new one"
 	echo "    -v, --version     show program version"
-	echo "    --reset           reset cycle and start over"
+	echo "    -r, --reset           reset cycle and start over"
 	echo "    --debug           enable debugging option"
 	echo "    --uninstall       uninstall milestone"
 	echo
@@ -739,6 +740,7 @@ create_score_file() {
 	# list practice files
 	find $practice_location/ -type f\
 		! -executable \
+		-name "*.py" -o \
 		-name "*.cxx" -o \
 		-name "*.hpp" -o \
 		-name "*.cpp" -o \
@@ -788,7 +790,12 @@ zip was compiled with options not supported on this system
 		else
 			((ret++))
 			echo -e $BOLD"failed"$DEFAULT
-			echo -e $BLUE"Reason: "$DEFAULT$BOLD$(echo "$zip_errors" | cut -d: -f2 | awk "NR==$ret");
+			echo -ne $BLUE"Reason: "$DEFAULT
+			if [ $ret -eq 128 ]; then
+				echo -e $BOLD"zip not installed"$DEFAULT;
+			else
+				$BOLD$(echo "$zip_errors" | cut -d: -f2 | awk "NR==$ret")$DEFAULT;
+			fi
 		fi
 	else
 		echo -e $BOLD"No practices found to backup"$DEFAULT;
@@ -890,7 +897,6 @@ display_bar() {
 		return 3
 	fi
 
-	# FIXME: remove the last useless colon in result
 	result=$(sed 's/:$//' <<< "$result")
 
 	# evaluage usage percentage of each language
@@ -899,7 +905,6 @@ display_bar() {
 	# sort the languages based on percentage
 	result=$(echo "$result" | tr ':' '\n' | sort -t, -k2 -r -h | sed '/^$/d' | tr '\n' ':')
 
-	# FIXME: remove the last useless colon in result
 	result=$(sed 's/:$//' <<< "$result")
 
 	echo -e "\nLanguages\n"
@@ -1133,11 +1138,11 @@ parse_option() {
 		MARK_NOT_DONE=true;
 		MARK_NOT_VALUE="$option_value";
 		;;
-	--reset)
+	-r|--reset)
 		ACTIVITY_OPTIONS=true;
 		RESET_OPTION=true;
 		;;
-	-r|--reorder)
+	--reorder)
 		REORDER_OPTION=true;
 		;;
 	-s|--score)
@@ -1224,7 +1229,7 @@ while [ $# -gt 0 ]; do
 		option_length=$(echo $script_option | wc -c);
 		option_length=$(expr $option_length - 2);
 
-		for option_index in $(seq 0 $option_length); do
+		for option_index in $(seq 1 $option_length); do
 			option_letter=$(echo ${script_option:$option_index:1});
 
 			if $PAIR_OPTION; then
@@ -1337,6 +1342,10 @@ if $MARK_NOT_DONE; then
 	else
 		echo "practice number not specified";
 	fi
+fi
+
+if $RESET_OPTION; then
+	backup_practices
 fi
 
 if ! $SCORE_OPTION &&  $RESET_OPTION; then
