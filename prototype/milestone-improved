@@ -136,8 +136,13 @@ if [ $# -eq 0 ]; then
 	usage
 fi
 
-while [ $# -gt 0 ]; do
-	case $1 in
+parameters=$(getopt -n milestone-improved -o 'hvq:swnc:d:D:p:t:' --long 'help,version,query:,score,write-notes,list-notes,check-note:,done:,mark-done:,undone:,mark-not-done:,set-progress:,progress:,tab:,tab-size:,no-color,debug' -- "$@")
+if [ $? -ne 0 ]; then exit 1; fi
+eval set -- "$parameters"
+unset parameters
+
+while true; do
+	case "$1" in
 		# general options
 		-h|--help)
 			usage
@@ -150,6 +155,7 @@ while [ $# -gt 0 ]; do
 		# practice options
 		-q|--query)
 			query_option=true
+			shift
 			;;
 		-s|--score)
 			score_option=true
@@ -163,26 +169,34 @@ while [ $# -gt 0 ]; do
 			;;
 		-c|--check-note)
 			check_node_option=true
+			shift
 			;;
 		# editing options
 		-d|--done|--mark-done)
 			mark_done_option=true
+			shift
 			;;
 		-D|--undone|--mark-not_done)
 			mark_undone_option=true
+			shift
 			;;
 		-p|--progress|--set-progress)
 			progress_option=true
+			shift
 			;;
 		# adjustment options
 		-t|--tab|--tab-size)
 			tab_size=$2
+			shift
 			;;
 		--no-color)
 			no_color_option=true
 			;;
 		--debug)
 			debug_option=true
+			;;
+		--)
+			break
 			;;
 		*)
 			show bold "Invalid option!"
