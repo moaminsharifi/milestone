@@ -116,12 +116,11 @@ usage() {
 	echo -e "General Options"
 	tput sgr0
 	echo "    -h, --help        show help"
-	echo "    --reorder     reorder cycle"
-	echo "    --restart         close cycles and start new one"
 	echo "    -v, --version     show program version"
 	echo "    -r, --reset           reset cycle and start over"
+	echo "    --reorder     reorder cycle"
+	echo "    --restart         close cycles and start new one"
 	echo "    --debug           enable debugging option"
-	echo "    --uninstall       uninstall milestone"
 	echo
 	tput bold
 	echo "Practice Options"
@@ -370,9 +369,13 @@ get_practice_info() {
 		tput sgr0
 		echo "info: $practice_info"
 	else
-		echo -ne "<$LIGHT_YELLOW$practice_title$DEFAULT> $GREEN$practice_unit"
-		echo -ne " $practice_progress of $practice_total$DEFAULT"
-		echo -e " $VIOLET($[$practice_progress * 100 / $practice_total]%)$DEFAULT"
+		echo -ne "<$LIGHT_YELLOW$practice_title$DEFAULT> "
+		if [ "$practice_progress" == "complete" ]; then
+			echo -e $GREEN"complete"$DEFAULT
+		else
+			echo -ne "$GREEN$practice_unit $practice_progress of $practice_total $DEFAULT"
+			echo -e "$VIOLET($[$practice_progress * 100 / $practice_total]%)$DEFAULT"
+		fi
 	fi
 }
 
@@ -978,7 +981,7 @@ then
 	fi
 fi
 
-if [ -n "$LOOKUP_TEXT" ]; then
+if [ -n "$LOOKUP_TEXT" ] && [ "$LOOKUP_TEXT" != "-" ]; then
 	match=$(awk -v title="$LOOKUP_TEXT" 'BEGIN{FS=RS; IGNORECASE=1} $1 ~ "^[^\t]*"title' $practice_tree)
 	match_counter=$(echo "$match" | grep -oE '^[^\t]' | wc -l)
 
@@ -1099,123 +1102,136 @@ if [ -f $practice_history_file ]; then
 fi
 }
 
-parse_option() {
-	case "$1" in
-	-h|--help)
-		ACTIVITY_OPTIONS=true;
-		usage;
-		return;
-		;;
-	-d|--done)
-		ACTIVITY_OPTIONS=true;
-		PAIR_OPTION=true;
-		MARK_DONE=true;
-		MARK_VALUE="$option_value";
-		;;
-	-dn|--check-note)
-		ACTIVITY_OPTIONS=true;
-		CHECK_NOTE=true;
-		PAIR_OPTION=true;
-		note_number="$option_value";
-		;;
-	-d+|--set-progress)
-		ACTIVITY_OPTIONS=true;
-		PAIR_OPTION=true;
-		MARK_DONE=true;
-		MARK_VALUE="$option_value";
-		INCREMENT_PROGRESS=true;
-		;;
-	-D-|--revert-progress)
-		ACTIVITY_OPTIONS=true;
-		PAIR_OPTION=true;
-		MARK_NOT_DONE=true;
-		MARK_NOT_VALUE="$option_value";
-		DECREMENT_PROGRESS=true;
-		;;
-	-D|--not-done)
-		ACTIVITY_OPTIONS=true;
-		PAIR_OPTION=true;
-		MARK_NOT_DONE=true;
-		MARK_NOT_VALUE="$option_value";
-		;;
-	-r|--reset)
-		ACTIVITY_OPTIONS=true;
-		RESET_OPTION=true;
-		;;
-	--reorder)
-		REORDER_OPTION=true;
-		;;
-	-s|--score)
-		ACTIVITY_OPTIONS=true;
-		SCORE_OPTION=true;
-		;;
-	-p|--practices)
-		ACTIVITY_OPTIONS=true;
-		PRACTICES_OPTION=true;
-		PAIR_OPTION=true;
-		LOOKUP_TEXT="$option_value";
-		;;
-	-P|--preference)
-		PAIR_OPTION=true;
-		PREFERENCE_OPTION=true;
-		PREFERENCE_VALUE="$option_value";
-		;;
-	-v|--version)
-		ACTIVITY_OPTIONS=true;
-		echo $current_version;
-		return;
-		;;
-	-w|--write-notes)
-		ACTIVITY_OPTIONS=true;
-		WRITE_NOTE_OPTION=true;
-		;;
-	-n|--notes)
-		ACTIVITY_OPTIONS=true;
-		LIST_NOTES=true;
-		;;
-	-q|--query)
-		ACTIVITY_OPTIONS=true;
-		QUERY_OPTION=true;
-		PAIR_OPTION=true;
-		query_string="$option_value";
-		;;
-	--tab)
-		PAIR_OPTION=true;
-		TABSIZE="$option_value";
-		TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
-		TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
-		;;
-	--verbose)
-		VERBOSE_OPTION=true;
-		;;
-	--uninstall)
-		ACTIVITY_OPTIONS=true;
-		UNINSTALL_OPTION=true;
-		return;
-		;;
-	--[dD]ebug)
-		DEBUG=true;
-		;;
-	--restart)
-		ACTIVITY_OPTIONS=true;
-		CLOSE_CYCLE=true;
-		REORDER_OPTION=true;
-		;;
-	[1-9])
-		SELECTIVE_RING_OPTION=true;
-		SELECTED_RING=$1;
-		;;
-	*)
-		ACTIVITY_OPTIONS=true;
-		usage;
-		exit
-		;;
-	esac
-}
-
 if [ $# -eq 0 ]; then
 	REPRESENT_OPTION=true;
-else
+fi
+
+parameters=$(
+	getopt -n 'milestone' -o 'hq:d:D:sp:wnrPvV' --long 'help,query:,done:,not-done:,practices:,practice:,d+:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug' -- "$@"
+)
+if [ $? -ne 0 ]; then exit 4; fi
+eval set -- "$parameters"
+unset parameter
+
+ACTIVITY_OPTIONS=false;
+while true; do
+	case "$1" in
+		-h|--help)
+			usage
+			exit 0
+			;;
+		-v|--version)
+			ACTIVITY_OPTIONS=true;
+			echo $current_version;
+			exit 0;
+			;;
+		-q|--query)
+			ACTIVITY_OPTIONS=true;
+			QUERY_OPTION=true;
+			PAIR_OPTION=true;
+			query_string="$2";
+			shift
+			;;
+		-d|--done)
+			ACTIVITY_OPTIONS=true;
+			PAIR_OPTION=true;
+			MARK_DONE=true;
+			MARK_VALUE="$2";
+			shift
+			;;
+		-D|--not-done)
+			ACTIVITY_OPTIONS=true;
+			PAIR_OPTION=true;
+			MARK_NOT_DONE=true;
+			MARK_NOT_VALUE="$2";
+			shift
+			;;
+		-dn|--check-note)
+			ACTIVITY_OPTIONS=true;
+			CHECK_NOTE=true;
+			PAIR_OPTION=true;
+			note_number="$2";
+			shift
+			;;
+		-d+|--set-progress)
+			ACTIVITY_OPTIONS=true;
+			PAIR_OPTION=true;
+			MARK_DONE=true;
+			MARK_VALUE="$2";
+			INCREMENT_PROGRESS=true;
+			shift
+			;;
+		-D-|--revert-progress)
+			ACTIVITY_OPTIONS=true;
+			PAIR_OPTION=true;
+			MARK_NOT_DONE=true;
+			MARK_NOT_VALUE="$2";
+			DECREMENT_PROGRESS=true;
+			shift
+			;;
+		-s|--score)
+			ACTIVITY_OPTIONS=true;
+			SCORE_OPTION=true;
+			;;
+		-p|--practice|--practices)
+			ACTIVITY_OPTIONS=true;
+			PRACTICES_OPTION=true;
+			PAIR_OPTION=true;
+			LOOKUP_TEXT="$2";
+			shift
+			;;
+		-w|--write-notes)
+			ACTIVITY_OPTIONS=true;
+			WRITE_NOTE_OPTION=true;
+			;;
+		-n|--notes|--list-notes)
+			ACTIVITY_OPTIONS=true;
+			LIST_NOTES=true;
+			;;
+		-r|--reset)
+			ACTIVITY_OPTIONS=true;
+			RESET_OPTION=true;
+			;;
+		--reorder)
+			REORDER_OPTION=true;
+			;;
+		-P|--preference)
+			PAIR_OPTION=true;
+			PREFERENCE_OPTION=true;
+			PREFERENCE_VALUE="$2";
+			shift
+			;;
+		--tab)
+			PAIR_OPTION=true;
+			TABSIZE="$2";
+			TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
+			TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
+			shift
+			;;
+		-V|--verbose)
+			VERBOSE_OPTION=true;
+			;;
+		--[dD]ebug)
+			DEBUG=true;
+			;;
+		--restart)
+			ACTIVITY_OPTIONS=true;
+			CLOSE_CYCLE=true;
+			REORDER_OPTION=true;
+			;;
+		--)
+			shift
+			break
+			;;
+		*)
+			echo "invalid option $1"
+			exit 2
+			;;
+	esac
+	shift
+done
+
+junk() {
 option_value="";
 while [ $# -gt 0 ]; do
 	# treat option as if it requires value; only options that specify PAIR_OPTION; aka. -d 11
@@ -1257,10 +1273,10 @@ while [ $# -gt 0 ]; do
 	fi
 	shift
 done # done shifting between arguments
-fi
 
-sanity_check
 make_practice
+}
+sanity_check
 make_cycle
 
 if $PREFERENCE_OPTION; then
@@ -1293,18 +1309,6 @@ fi
 
 if $SCORE_OPTION; then
 	score_practice;
-fi
-
-if $QUERY_OPTION; then
-	if [ -z "$query_string" ]; then
-		tput bold
-		echo "Practice number not specified!"
-		tput sgr0
-		echo
-		usage
-	else
-		get_practice_info "$query_string";
-	fi
 fi
 
 if $PRACTICES_OPTION; then
@@ -1384,6 +1388,10 @@ if $REPRESENT_OPTION || ! $ACTIVITY_OPTIONS; then
 		show_daily_note
 		show_cycle;
 	fi
+fi
+
+if $QUERY_OPTION; then
+	get_practice_info "$query_string";
 fi
 
 # TODO:
