@@ -1107,9 +1107,9 @@ if [ $# -eq 0 ]; then
 fi
 
 parameters=$(
-	getopt -n 'milestone' -o 'hq:d:D:sp:wnrPvV' --long 'help,query:,done:,not-done:,practices:,practice:,d+:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug' -- "$@"
+	getopt -n 'milestone' -o 'hq:d:D:sp:wnrPvV' --long 'help,query:,done:,not-done:,practices:,practice:,d+:,progress:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug' -- "$@"
 )
-if [ $? -ne 0 ]; then exit 4; fi
+if [ $? -ne 0 ]; then usage; exit 4; fi
 eval set -- "$parameters"
 unset parameter
 
@@ -1146,14 +1146,14 @@ while true; do
 			MARK_NOT_VALUE="$2";
 			shift
 			;;
-		-dn|--check-note)
+		--dn|--check-note)
 			ACTIVITY_OPTIONS=true;
 			CHECK_NOTE=true;
 			PAIR_OPTION=true;
 			note_number="$2";
 			shift
 			;;
-		-d+|--set-progress)
+		--d+|--progress|--set-progress)
 			ACTIVITY_OPTIONS=true;
 			PAIR_OPTION=true;
 			MARK_DONE=true;
@@ -1161,7 +1161,7 @@ while true; do
 			INCREMENT_PROGRESS=true;
 			shift
 			;;
-		-D-|--revert-progress)
+		--D-|--revert-progress)
 			ACTIVITY_OPTIONS=true;
 			PAIR_OPTION=true;
 			MARK_NOT_DONE=true;

@@ -41,10 +41,13 @@ The lowest level branches are considered as practices, the top levels as categor
 ## Milestone-Improved Objectives
 
 * Database storage
-* Online Synchronization and accounting
-* Milestone daemon as client service
-* Milestone server
-* Standardized roadmap structure
-* Standardized practice structure
+* Online synchronization and accounting
+* Milestone daemon (milestoned)
+* Milestone client (milestone)
+* Milestone server (milsetone-server)
+* Standard roadmap structure
+* Standard practice structure
 * Basic GUI
 * Milestone configuration file
+* Multiple resource progress
+* Progress Tracking on Resource and Skill
