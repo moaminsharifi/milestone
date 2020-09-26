@@ -1,10 +1,10 @@
 #!/bin/bash
 
 current_version="v0.7.8"
-location=~/.local/share/milestone
-practice_location=$(readlink ~/.local/share/practices)
-source_file=~/.milestone
-practice_tree=~/.practices
+location=$(readlink -f ~/.local/share/milestone)
+practice_location=$(readlink -f ~/.local/share/practices)
+source_file=$(readlink -f ~/.milestone)
+practice_tree=$(readlink -f ~/.practices)
 practice_history_file=~/.practice.history
 practice_history_tree=~/.practice.tree
 practice_file=$(date +%F).list
@@ -12,7 +12,6 @@ practice_map=/tmp/milestone/$(echo $(whoami))-practice.map;
 daily_practice_list=/tmp/milestone/$(echo $(whoami))-practice-days.list;
 cycle_map_file=/tmp/milestone/$(echo $(whoami))-cycle.map;
 PREFERENCE_MONTH=$(date +%Y-%m);
-PAIR_OPTION=false;
 SHOW_HISTOGRAM=false;
 COLORED=true; # can be disabled manually!
 INSPECT=false;
@@ -78,6 +77,7 @@ CLOSE_CYCLE=false;
 SELECTIVE_RING_OPTION=false;
 QUERY_OPTION=false;
 LIST_NOTES=false;
+MARK_DONE_WITH_PROGRESS=false;
 
 # color codes
 DARK="\e[30m"
@@ -391,15 +391,29 @@ mark_done() {
 	practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
 	practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
 	practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
+	if $MARK_DONE_WITH_PROGRESS; then
+		echo -e $BLUE"current progress: $practice_unit $practice_progress"$DEFAULT
+		echo -ne $BLUE" next step: "$DEFAULT
+		while true; do
+			read PROGRESS_STEP < /dev/tty
+			if [ $(echo "$PROGRESS_STEP" | grep -oE "^[0-9]*$" | wc -l) -eq 1 ]; then
+				break
+			else
+				echo "invalid step $PROGRESS_STEP"
+			fi
+		done
+	fi
+	practice_progress=$[practice_progress + PROGRESS_STEP];
 	practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
+	if [ $practice_progress -gt $practice_total ]; then practice_progress=$practice_total; fi
 
 	if [ $PRACTICE_NUMBER -ge $MIN_NUMBER ] && [ $PRACTICE_NUMBER -le $MAX_NUMBER ]; then
 		if $already_done && ! $INCREMENT_PROGRESS; then
 			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> as$BOLD done$DEFAULT";
 		else
 			if $INCREMENT_PROGRESS && [ "$practice_unit" != "complete" ]; then
-				echo -e $GREEN"Raising$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> progress to $GREEN$practice_unit $[practice_progress+1]$DEFAULT $VIOLET($[$[practice_progress+1] * 100 / $practice_total]% - $[practice_progress+1] of $practice_total)$DEFAULT"
-			elif [ "$practice_unit" == "complete" ] || [ $practice_progress -eq 100 ]; then
+				echo -e $GREEN"Raising$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> progress to $GREEN$practice_unit $practice_progress$DEFAULT $VIOLET($[practice_progress * 100 / $practice_total]% - $practice_progress of $practice_total)$DEFAULT"
+			elif [ "$practice_unit" == "complete" ] || [ $practice_progress -ge 100 ]; then
 				echo -e "You already finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
 				return
 			else
@@ -413,11 +427,11 @@ mark_done() {
 
 			if $INCREMENT_PROGRESS; then
 				if test -n "$practice_info"; then
-					if [ "$practice_unit" == "complete" ] || [ $(expr $practice_progress + 1) -gt $practice_total ]; then
+					if [ "$practice_unit" == "complete" ] || [ $practice_progress -ge $practice_total ]; then
 						echo -e "You finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
 						return;
 					fi
-					sed -i -rz "s/$practice_unit\ *$practice_progress\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $(expr $practice_progress + 1)\/$practice_total\1/" $source_file;
+					sed -i -rz "s/$practice_unit\ *$[practice_progress - $PROGRESS_STEP]\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $practice_progress\/$practice_total\1/" $source_file;
 				fi
 			fi
 		fi
@@ -743,6 +757,7 @@ create_score_file() {
 	# list practice files
 	find $practice_location -type f\
 		! -executable \
+		-path CMakeFiles -prune -o \
 		-name "*.py" -o \
 		-name "*.cxx" -o \
 		-name "*.hpp" -o \
@@ -751,7 +766,8 @@ create_score_file() {
 		-name "*.c" -o \
 		-name "*.h" -o \
 		-name "*.s" -o \
-		-name "*.asm" \
+		-name "*.asm" -o \
+		-name "CMakeLists.txt" \
 		> /tmp/score.log
 }
 
@@ -865,6 +881,10 @@ file_analyzer() {
 		tex)
 			language=TeX
 			language_color=22 # dark green
+			;;
+		CMakeLists*)
+			language=CMake
+			language_color=119 # light green
 			;;
 		*)
 			# ignore unknown languages
@@ -1128,44 +1148,51 @@ while true; do
 		-q|--query)
 			ACTIVITY_OPTIONS=true;
 			QUERY_OPTION=true;
-			PAIR_OPTION=true;
 			query_string="$2";
 			shift
 			;;
 		-d|--done)
 			ACTIVITY_OPTIONS=true;
-			PAIR_OPTION=true;
 			MARK_DONE=true;
+			PROGRESS_STEP=1;
 			MARK_VALUE="$2";
 			shift
 			;;
 		-D|--not-done)
 			ACTIVITY_OPTIONS=true;
-			PAIR_OPTION=true;
 			MARK_NOT_DONE=true;
+			PROGRESS_STEP=1;
 			MARK_NOT_VALUE="$2";
 			shift
 			;;
 		--dn|--check-note)
 			ACTIVITY_OPTIONS=true;
 			CHECK_NOTE=true;
-			PAIR_OPTION=true;
 			note_number="$2";
 			shift
 			;;
-		--d+|--progress|--set-progress)
+		--d+|--progress)
 			ACTIVITY_OPTIONS=true;
-			PAIR_OPTION=true;
 			MARK_DONE=true;
+			PROGRESS_STEP=1;
 			MARK_VALUE="$2";
+			INCREMENT_PROGRESS=true;
+			shift
+			;;
+		--set-progress)
+			ACTIVITY_OPTIONS=true;
+			MARK_DONE=true;
+			MARK_DONE_WITH_PROGRESS=true;
+			MARK_VALUE="$2";
+			PROGRESS_STEP=$3;
 			INCREMENT_PROGRESS=true;
 			shift
 			;;
 		--D-|--revert-progress)
 			ACTIVITY_OPTIONS=true;
-			PAIR_OPTION=true;
 			MARK_NOT_DONE=true;
 			MARK_NOT_VALUE="$2";
+			PROGRESS_STEP=1;
 			DECREMENT_PROGRESS=true;
 			shift
 			;;
@@ -1176,7 +1203,6 @@ while true; do
 		-p|--practice|--practices)
 			ACTIVITY_OPTIONS=true;
 			PRACTICES_OPTION=true;
-			PAIR_OPTION=true;
 			LOOKUP_TEXT="$2";
 			shift
 			;;
@@ -1196,13 +1222,11 @@ while true; do
 			REORDER_OPTION=true;
 			;;
 		-P|--preference)
-			PAIR_OPTION=true;
 			PREFERENCE_OPTION=true;
 			PREFERENCE_VALUE="$2";
 			shift
 			;;
 		--tab)
-			PAIR_OPTION=true;
 			TABSIZE="$2";
 			TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
 			TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
