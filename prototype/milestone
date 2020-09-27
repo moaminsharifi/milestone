@@ -412,7 +412,7 @@ mark_done() {
 			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> as$BOLD done$DEFAULT";
 		else
 			if $INCREMENT_PROGRESS && [ "$practice_unit" != "complete" ]; then
-				echo -e $GREEN"Raising$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> progress to $GREEN$practice_unit $practice_progress$DEFAULT $VIOLET($[practice_progress * 100 / $practice_total]% - $practice_progress of $practice_total)$DEFAULT"
+				echo -e "Raising <$LIGHT_YELLOW$practice_title$DEFAULT> progress to $GREEN$practice_unit $practice_progress$DEFAULT $VIOLET($[practice_progress * 100 / $practice_total]% - $practice_progress of $practice_total)$DEFAULT"
 			elif [ "$practice_unit" == "complete" ] || [ $practice_progress -ge 100 ]; then
 				echo -e "You already finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
 				return

@@ -51,3 +51,4 @@ The lowest level branches are considered as practices, the top levels as categor
 * Milestone configuration file
 * Multiple resource progress
 * Progress Tracking on Resource and Skill
+* Progress Tracking based on all related units
