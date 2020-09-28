@@ -325,7 +325,7 @@ query_practice() {
 	if echo "$1" | grep -qE '^[0-9]+$'; then # $1 is numeric
 		PRACTICE_NUMBER=$1;
 	else # $1 is not numeric
-		match=$(awk -v title="$1" 'BEGIN{FS="\t"; IGNORECASE=1} $2 ~ title {print $2}' $location/$cycle_file)
+		match=$(awk -v title="$1" 'BEGIN{FS="\t"; IGNORECASE=1} $2 ~ title {print $2}' $location/$cycle_file | sort | uniq)
 		match_counter=$(echo "$match" | grep -oE '^[^\t]' | wc -l)
 
 		if [ $match_counter -eq 0 ]; then
@@ -391,19 +391,30 @@ mark_done() {
 	practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
 	practice_unit=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\1/' | grep -v '#');
 	practice_progress=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\2/' | grep -v '#');
+	old_progress=$practice_progress
 	if $MARK_DONE_WITH_PROGRESS; then
-		echo -e $BLUE"current progress: $practice_unit $practice_progress"$DEFAULT
-		echo -ne $BLUE" next step: "$DEFAULT
+		echo -e $BLUE"current progress: $practice_unit $old_progress"$DEFAULT
+		echo -ne $BLUE"next step: "$DEFAULT
 		while true; do
 			read PROGRESS_STEP < /dev/tty
-			if [ $(echo "$PROGRESS_STEP" | grep -oE "^[0-9]*$" | wc -l) -eq 1 ]; then
+			if [ $(echo "$PROGRESS_STEP" | grep -oE "^[+]?[0-9]*$" | wc -l) -eq 1 ]; then
 				break
 			else
 				echo "invalid step $PROGRESS_STEP"
 			fi
 		done
+
+		local progress_setup=$(grep -oP "^\+" <<< $PROGRESS_STEP | wc -l)
+		local progress_step=$(echo "$PROGRESS_STEP" | sed 's/^+//')
+		if [ $progress_setup -gt 0 ]; then
+			practice_progress=$[old_progress + progress_step];
+		else
+			practice_progress=$progress_step;
+		fi
+	else
+		practice_progress=$[old_progress + 1];
 	fi
-	practice_progress=$[practice_progress + PROGRESS_STEP];
+
 	practice_total=$(echo "$practice_info" | sed -r 's/^([a-zA-Z]*)\ ([0-9]*)\ *?\/\ *?([0-9]*).*$/\3/' | grep -v '#');
 	if [ $practice_progress -gt $practice_total ]; then practice_progress=$practice_total; fi
 
@@ -431,7 +442,7 @@ mark_done() {
 						echo -e "You finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
 						return;
 					fi
-					sed -i -rz "s/$practice_unit\ *$[practice_progress - $PROGRESS_STEP]\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $practice_progress\/$practice_total\1/" $source_file;
+					sed -i -rz "s/$practice_unit\ *$[old_progress]\ *\/\ *$practice_total(\n$practice_title)/$practice_unit\ $practice_progress\/$practice_total\1/" $source_file;
 				fi
 			fi
 		fi
@@ -755,20 +766,21 @@ create_score_file() {
 	find $practice_location -type f -name "*~" -exec rm -f {} \;
 
 	# list practice files
-	find $practice_location -type f\
-		! -executable \
-		-path CMakeFiles -prune -o \
-		-name "*.py" -o \
-		-name "*.cxx" -o \
-		-name "*.hpp" -o \
-		-name "*.cpp" -o \
-		-name "*.cu" -o \
-		-name "*.c" -o \
-		-name "*.h" -o \
-		-name "*.s" -o \
-		-name "*.asm" -o \
+	find $practice_location \
+		-type f \
+		-not -path *build* \
+		-regex ".*\.\(py\|cxx\|hpp\|cpp\|cu\|c\|h\|s\|asm\)$" -o \
 		-name "CMakeLists.txt" \
 		> /tmp/score.log
+#		-name "*\.py" -o \
+#		-name "*\.cxx" -o \
+#		-name "*\.hpp" -o \
+#		-name "*\.cpp" -o \
+#		-name "*\.cu" -o \
+#		-name "*\.c" -o \
+#		-name "*\.h" -o \
+#		-name "*\.s" -o \
+#		-name "*\.asm" \
 }
 
 backup_practices() {
@@ -882,7 +894,7 @@ file_analyzer() {
 			language=TeX
 			language_color=22 # dark green
 			;;
-		CMakeLists*)
+		CMakeLists.txt)
 			language=CMake
 			language_color=119 # light green
 			;;
@@ -944,10 +956,9 @@ display_bar() {
 
 language_analyzer() {
 	# search files for language detection
-	find $1 -type f -not -path '*/\.*' > /tmp/record
 	while FS= read -r file; do
 		file_analyzer "$file"
-	done < /tmp/record
+	done < /tmp/score.log
 
 	# output the result
 	display_bar
