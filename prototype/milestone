@@ -990,6 +990,7 @@ score_practice() {
 
 daily_practice() {
 ret=0
+code_block=false
 # load from history
 if $RESET_OPTION
 then
@@ -1063,15 +1064,22 @@ do
 	fi
 
 	# consequitive root levels are ignored
-	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]
-	then
+	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]; then
 		((++line_counter));
 		continue
+	# enter code block
+	elif [ $(echo $line | grep -c '"""') -gt 0 ]; then
+		if $code_block; then
+			code_block=false
+			skipped_flag=false
+		else
+			code_block=true
+			skipped_flag=true
+		fi
+		continue
 	# next main topic
-	elif [ $topic -eq 1 ] && [ $nexttopic -eq 0 ]
-	then
-		if [ -f $practice_history_tree ]
-		then
+	elif [ $topic -eq 1 ] && [ $nexttopic -eq 0 ] && ! $code_block; then
+		if [ -f $practice_history_tree ]; then
 			rm $practice_history_tree
 		fi
 
@@ -1081,19 +1089,17 @@ do
 		if $DEBUG; then echo -n $linedepth\#$nextdepth; fi
 		echo -e $(tput setaf 39)"$line"$(tput sgr0) | tee -a $practice_history_tree
 	# deeper topic
-	elif [ $topic -eq 0 ]
-	then
+	elif [ $topic -eq 0 ]; then
 		# next non-zero level topic
-		if [ $nextdepth -gt $linedepth ]
-		then
+		if [ $nextdepth -gt $linedepth ] && ! $code_block; then
 			if $DEBUG; then echo -n $linedepth+$nextdepth; fi
 			echo -e "$line" | sed "s/\t/$TABSTRING/g" | tee -a $practice_history_tree
 		# deepest topic
-		elif [ $nextdepth -le $linedepth ]
-		then
+		elif [ $nextdepth -le $linedepth ]; then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
 			echo -en $(tput setaf 82)"$line" |\
 			   	sed -r\
+				-e "s/,$//"\
 				-e "s/\t/$TABSTRING/g"\
 				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf 82)/"\
 				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf 82)/"\
