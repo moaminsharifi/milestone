@@ -114,6 +114,13 @@ usage() {
 	echo -e "Milestone Prototype"$DEFAULT
 	echo
 	tput bold
+	echo "Usage:"
+	tput sgr0
+	echo -e "\tmilestone --tasks"
+	echo -e "\tmilestone --practice [title]"
+	echo -e "\tmilestone --notes"
+	echo
+	tput bold
 	echo -e "General Options"
 	tput sgr0
 	echo "    -h, --help        show help"
@@ -126,7 +133,7 @@ usage() {
 	tput bold
 	echo "Practice Options"
 	tput sgr0
-	echo "    -p, --practices   begin practice routine"
+	echo "    -p, --practice   begin practice routine"
 	echo "    -s, --score       score practice"
 	echo "    -w, --write-notes write daily note objectives"
 	echo "    --tab N           adjust tab size for practices, default=4"
@@ -205,12 +212,12 @@ show_practices() {
 		printf "%6s\t" $practice_number;
 		echo -e "$bash_seq$practice_title$DEFAULT";
 
-	done <<< $(cat $1);
+	done <<< $(cat $1) | column;
 	echo;
 }
 
 represent() {
-	make_practice;
+#	make_practice;
 	echo -e $CYAN"Daily Progress"$DEFAULT; echo;
 	TOTAL_TASKS=$(cat /tmp/$practice_file | sed '/^\ *$/d' | grep -v "#" | wc -l);
 	DONE_COUNT=$(grep -o "\-\-" /tmp/$practice_file | wc -l | cut -d' ' -f1);
@@ -1132,11 +1139,12 @@ fi
 }
 
 if [ $# -eq 0 ]; then
-	REPRESENT_OPTION=true;
+	usage
+	exit 1
 fi
 
 parameters=$(
-	getopt -n 'milestone' -o 'hq:d:D:sp:wnrPvV' --long 'help,query:,done:,not-done:,practices:,practice:,d+:,progress:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug' -- "$@"
+	getopt -n 'milestone' -o 'hq:d:D:sp:wnrPvV' --long 'help,query:,done:,not-done:,practices:,practice:,d+:,progress:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug,tasks,daily' -- "$@"
 )
 if [ $? -ne 0 ]; then usage; exit 4; fi
 eval set -- "$parameters"
@@ -1153,6 +1161,15 @@ while true; do
 			ACTIVITY_OPTIONS=true;
 			echo $current_version;
 			exit 0;
+			;;
+		--daily)
+			ACTIVITY_OPTIONS=true;
+			DAILY_REPORT=true;
+			REPRESENT_OPTION=true;
+			;;
+		--tasks)
+			ACTIVITY_OPTIONS=true;
+			REPRESENT_OPTION=true;
 			;;
 		-q|--query)
 			ACTIVITY_OPTIONS=true;
@@ -1418,7 +1435,6 @@ if $REPRESENT_OPTION || ! $ACTIVITY_OPTIONS; then
 	elif $DAILY_REPORT; then
 		represent;
 	else
-		show_daily_note
 		show_cycle;
 	fi
 fi
