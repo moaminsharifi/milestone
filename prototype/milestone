@@ -824,7 +824,9 @@ zip was compiled with options not supported on this system
 			if [ $ret -eq 128 ]; then
 				echo -e $BOLD"zip not installed"$DEFAULT;
 			else
-				$BOLD$(echo "$zip_errors" | cut -d: -f2 | awk "NR==$ret")$DEFAULT;
+				tput bold
+				echo "$zip_errors" | cut -d: -f2 | awk "NR==$ret";
+				tput sgr0
 			fi
 		fi
 	else
@@ -996,21 +998,8 @@ score_practice() {
 }
 
 daily_practice() {
-ret=0
-code_block=false
-# load from history
-if $RESET_OPTION
-then
-	backup_practices
-	if [ -f $practice_history_file ]
-	then
-		rm $practice_history_file
-	fi
-	if [ -f $practice_history_tree ]
-	then
-		rm $practice_history_tree
-	fi
-fi
+	ret=0
+	code_block=false
 
 if [ -n "$LOOKUP_TEXT" ] && [ "$LOOKUP_TEXT" != "-" ]; then
 	match=$(awk -v title="$LOOKUP_TEXT" 'BEGIN{FS=RS; IGNORECASE=1} $1 ~ "^[^\t]*"title' $practice_tree)
@@ -1400,6 +1389,14 @@ fi
 
 if $RESET_OPTION; then
 	backup_practices
+	if [ -f $practice_history_file ]
+	then
+		rm $practice_history_file
+	fi
+	if [ -f $practice_history_tree ]
+	then
+		rm $practice_history_tree
+	fi
 fi
 
 if ! $SCORE_OPTION &&  $RESET_OPTION; then
