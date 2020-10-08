@@ -1,11 +1,28 @@
 #!/usr/bin/env bash
 
-#*******************************************************************************
-# Global variables used for options
+#******************************************************************************
+# configuration variables
 tab_size=4
 no_color_option=false
+#
+# parameter variables
+usage_option=false
+version_option=false
+query_option=
+score_option=false
+write_note_option=false
+list_note_option=false
+check_node_option=
+mark_done_option=
+mark_undone_option=
+progress_option=
+debug_option=false
+tutorial_option=false
+add_task_option=false
+remove_task_option=
+change_task_option=
 
-#*******************************************************************************
+#******************************************************************************
 # Functions
 
 ## description: outputs string with style and color
@@ -23,10 +40,7 @@ show() {
 	local trailing_newline=true
 
 	# empty show will only print newline
-	if [ $# -eq 0 ]; then
-		echo
-		return
-	fi
+	if [ $# -eq 0 ]; then echo; return; fi
 	
 	# attributes are interpreted before or between strings
 	# FIXME: interpret attribute as string when needed
@@ -34,10 +48,7 @@ show() {
 		case $1 in
 			# styles
 			bold) output_style=$1 ;;
-			normal|default)
-				output_style=sgr0
-				output_color=
-				;;
+			normal|default) output_style=sgr0; output_color= ;;
 			italic) output_style=sgr0 ;;
 			strike-through) output_style=sgr0 ;;
 			dim) output_style=$1 ;;
@@ -72,7 +83,7 @@ show() {
 				local output_string=$1
 				if [ $margin -lt ${#1} ]; then
 					alignment_position=$margin
-					output_string=$(sed 's/\&align//g' <<< $1)
+					output_string=$(sed 's/\\ *&align\ */\ /g' <<< $1)
 				elif [ -z "$alignment_position" ]; then
 					alignment_position=0
 				fi
@@ -100,6 +111,7 @@ usage() {
 	show bold "General Options"
 	show
 	show blue "-h, --help" space normal "get help and usage"
+	show blue "--tutorial" space normal "start milestone tutorial"
 	show blue "-v, --version" space normal "get current milestone version"
 	show blue inline "-t [size=4], --tab, --tab-size"
 	show space "set tab size in milestone output"
@@ -115,94 +127,130 @@ usage() {
 	show
 	show bold "Practice Options"
 	show
-	show blue "-q [practice name], --query" space normal "query practice"
-	show blue inline "-d [practice name], --done, --mark-done"
-	show space "mark practice as done"
-	show blue inline "-D [practice name], --undone, --mark-not_done"
-	show space "mark practice as not done"
-	show blue inline "-p [-/+ progress=1] [practice name],"
+	show blue "-a, --add-task" space normal "add a task"
+	show blue "-r [task], --remove-task" space normal "remove a task"
+	show blue "-q [task], --query" space normal "query task"
+	show blue inline "-d [task], --done, --mark-done"
+	show space "mark task as done"
+	show blue inline "-D [task], --undone, --mark-not_done"
+	show space "mark task as not done"
+	show blue inline "-p [-/+ progress=1] [task],"
    	show blue inline space "--progress, --set-progress"
-	show space "record progress on practice"
-	show blue "-s, --score" space normal "see current score of practices"
+	show space "record progress on task"
+	show blue "-s, --score" space normal "see current score of task"
 }
 
 usage_error() {
 	show bold "milestone error"
 }
 
-#*******************************************************************************
+tutorial() {
+	usage_error
+}
+
+write_note() {
+	usage_error
+}
+
+list_notes() {
+	usage_error
+}
+
+check_note() {
+	usage_error
+}
+
+add_task() {
+	usage_error
+}
+
+remove_task() {
+	usage_error
+}
+
+mark_done() {
+	usage_error
+}
+
+mark_undone() {
+	usage_error
+}
+
+set_progress() {
+	usage_error
+}
+
+change_task() {
+	usage_error
+}
+
+query_task() {
+	usage_error
+}
+
+score_practice() {
+	usage_error
+}
+
+#******************************************************************************
 # Options Parser
 if [ $# -eq 0 ]; then
 	usage
 fi
 
-parameters=$(getopt -n milestone-improved -o 'hvq:swnc:d:D:p:t:' --long 'help,version,query:,score,write-notes,list-notes,check-note:,done:,mark-done:,undone:,mark-not-done:,set-progress:,progress:,tab:,tab-size:,no-color,debug' -- "$@")
+parameters=$(getopt -n $0 -o 'hvq:swnc:d:D:p:t:ar:'\
+	--long 'help,version,query:,score,write-notes,list-notes,check-note:'\
+	',done:,mark-done:,undone:,mark-not-done:,set-progress:,progress:,tab'\
+	':,tab-size:,no-color,debug,add-task,remove-task,tutorial,change-task'\
+   	-- "$@")
 if [ $? -ne 0 ]; then exit 1; fi
 eval set -- "$parameters"
 unset parameters
 
 while true; do
 	case "$1" in
-		# general options
-		-h|--help)
-			usage
-			exit
-			;;
-		-v|--version)
-			version
-			exit
-			;;
-		# practice options
-		-q|--query)
-			query_option=true
-			shift
-			;;
-		-s|--score)
-			score_option=true
-			;;
-		# note options
-		-w|--write-notes)
-			write_note_option=true
-			;;
-		-n|--list-notes)
-			list_note_option=true
-			;;
-		-c|--check-note)
-			check_node_option=true
-			shift
-			;;
-		# editing options
-		-d|--done|--mark-done)
-			mark_done_option=true
-			shift
-			;;
-		-D|--undone|--mark-not_done)
-			mark_undone_option=true
-			shift
-			;;
-		-p|--progress|--set-progress)
-			progress_option=true
-			shift
-			;;
-		# adjustment options
-		-t|--tab|--tab-size)
-			tab_size=$2
-			shift
-			;;
-		--no-color)
-			no_color_option=true
-			;;
-		--debug)
-			debug_option=true
-			;;
-		--)
-			break
-			;;
-		*)
-			show bold "Invalid option!"
-			usage
-			exit
-			;;
+	# general options
+		-h|--help) usage_option=true ;;
+		--tutorial) tutorial_option=true ;;
+		-v|--version) version_option=true ;;
+	# note options
+		-w|--write-notes) write_note_option=true ;;
+		-n|--list-notes) list_note_option=true ;;
+		-c|--check-note) check_node_option="$2"; shift ;;
+	# task options
+		-a|--add-task) add_task_option=true ;;
+		-r|--remove-task) remove_task_option="$2"; shift ;;
+		-d|--done|--mark-done) mark_done_option="$2"; shift ;;
+		-D|--undone|--mark-not_done) mark_undone_option="$2"; shift ;;
+		-p|--progress|--set-progress) progress_option="$2"; shift ;;
+		--change-task) change_task_option="$2"; shift ;;
+		-q|--query) query_option="$2"; shift ;;
+		-s|--score) score_option=true ;;
+	# adjustment options
+		-t|--tab|--tab-size) tab_size=$2; shift ;;
+		--no-color) no_color_option=true ;;
+		--debug) debug_option=true ;;
+	# getopt specific value
+		--) break ;;
+		*) show bold "Invalid option!"; usage_option; exit ;;
 	esac
 	shift
 done
+
+# priority 20
+# priority 10
+# priority 0
+if $usage_option; then usage; exit; fi
+if $tutorial_option; then tutorial; exit; fi
+if $version_option; then version; exit; fi
+if $write_note_option; then write_note; fi
+if $list_note_option; then list_notes; fi
+if [ -n "$check_note_option" ]; then check_note "$check_note_option"; fi
+if $add_task_option; then add_task; fi
+if [ -n "$remove_task_option" ]; then remove_task "$remove_task_option"; fi
+if [ -n "$mark_done_option" ]; then mark_done "$mark_done"; fi
+if [ -n "$mark_undone_option" ]; then mark_undone "$mark_undone_option"; fi
+if [ -n "$progress_option" ]; then set_progress "$progress_option"; fi
+if [ -n "$change_task_option" ]; then change_task "$change_task_option"; fi
+if [ -n "$query_option" ]; then query_task "$query_option"; fi
+if $score_option; then score_practice; fi
