@@ -936,7 +936,7 @@ display_bar() {
 	result=$(sed 's/:$//' <<< "$result")
 
 	# evaluage usage percentage of each language
-	result=$(awk -v sum=$sum 'BEGIN{FS=",";OFS=",";RS=":";ORS=":"} {percentage=$2*100/sum; printf "%s,%.1f,%s\n", $1, percentage, $3}' <<< "$result")
+	result=$(awk -v sum=$sum 'BEGIN{FS=",";OFS=",";RS=":";ORS=":"} {percentage=$2*100/sum; printf "%s,%d,%.1f,%s\n", $1, $2, percentage, $3}' <<< "$result")
 
 	# sort the languages based on percentage
 	result=$(echo "$result" | tr ':' '\n' | sort -t, -k2 -r -h | sed '/^$/d' | tr '\n' ':')
@@ -947,12 +947,12 @@ display_bar() {
 
 	# draw language bar
 	block=$(echo -e "\u2588")
-	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); for(c=0;c<$2*axis/100;c++) printf "%s",block; system("tput sgr0")}' <<< "$result"
+	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $4); for(c=0;c<$3*axis/100;c++) printf "%s",block; system("tput sgr0")}' <<< "$result"
 	echo -e "\n"
 
 	# write language names
 	block=$(echo -e "\u25cf")
-	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $3); printf "%s %s ", block, $1; system("tput sgr0"); system("tput dim"); printf "%%%.1f\n", $2; system("tput sgr0")}' <<< "$result" | pr -2 -t -a
+	awk -v block="$block" -v axis=40 'BEGIN{FS=",";RS=":"} {system("tput setaf " $4); printf "%2s %-13s ", block, $1; system("tput sgr0"); system("tput dim"); printf "+%d (%%%.1f)\n", $2, $3; system("tput sgr0")}' <<< "$result"
 }
 
 language_analyzer() {
