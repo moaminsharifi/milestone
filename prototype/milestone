@@ -217,7 +217,7 @@ show_practices() {
 }
 
 represent() {
-#	make_practice;
+	# make_practice;
 	echo -e $CYAN"Daily Progress"$DEFAULT; echo;
 	TOTAL_TASKS=$(cat /tmp/$practice_file | sed '/^\ *$/d' | grep -v "#" | wc -l);
 	DONE_COUNT=$(grep -o "\-\-" /tmp/$practice_file | wc -l | cut -d' ' -f1);
@@ -634,7 +634,7 @@ reorder_cycle() {
 	cycle_start_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\1/');
 	cycle_end_time=$(echo $cycle_file | sed -r 's/^.*cycle[0-9]*_(.*)_(.*)\.list$/\2/');
 	update_ring_list
-	make_practice
+	# make_practice
 
 	cat /tmp/$practice_file | cut -d'	' -f2 > /tmp/milestone/newlist
 	cat $location/$cycle_file | cut -d'	' -f2 > /tmp/milestone/oldlist
@@ -786,10 +786,10 @@ backup_practices() {
 zip_errors="""
 unknown zip error
 unexpected end of zip file.
-a  generic error in the zipfile format was detected.  Processing may have completed successfully anyway; some broken zipfiles
+a generic error in the zipfile format was detected. Processing may have completed successfully anyway; some broken zipfiles
 zip was unable to allocate memory for one or more buffers during program initialization.
-a severe error in the zipfile format was detected.  Processing probably failed immediately.
-entry too large to be processed (such as input files larger than 2 GB when not using Zip64 or trying to read an existing  ar‐
+a severe error in the zipfile format was detected. Processing probably failed immediately.
+entry too large to be processed (such as input files larger than 2 GB when not using Zip64 or trying to read an existing ar‐
 invalid comment format
 zip -T failed or out of memory
 the user aborted zip prematurely with control-C (or similar)
@@ -857,7 +857,7 @@ file_analyzer() {
 	case $file_extension in
 		asm|[sS]|sx)
 			language=Assembly
-			language_color=94 #blue
+			language_color=94 #brown
 			;;
 		[cC]|[hH]|i)
 			language=C
@@ -898,6 +898,10 @@ file_analyzer() {
 		CMakeLists.txt)
 			language=CMake
 			language_color=119 # light green
+			;;
+		sql)
+			language=SQL
+			language_color=5 # dark blue
 			;;
 		*)
 			# ignore unknown languages
@@ -1133,7 +1137,7 @@ if [ $# -eq 0 ]; then
 fi
 
 parameters=$(
-	getopt -n 'milestone' -o 'hq:d:D:sp:wnrPvV' --long 'help,query:,done:,not-done:,practices:,practice:,d+:,progress:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug,tasks,daily' -- "$@"
+	getopt -n 'milestone' -o 'mhq:d:D:sp:wnrPvV' --long 'help,query:,done:,not-done:,practices:,practice:,d+:,progress:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug,tasks,daily,backup' -- "$@"
 )
 if [ $? -ne 0 ]; then usage; exit 4; fi
 eval set -- "$parameters"
@@ -1145,6 +1149,15 @@ while true; do
 		-h|--help)
 			usage
 			exit 0
+			;;
+		--backup)
+			ACTIVITY_OPTIONS=true;
+			create_score_file
+			backup_practices
+			;;
+		-m)
+			ACTIVITY_OPTIONS=true;
+			make_practice
 			;;
 		-v|--version)
 			ACTIVITY_OPTIONS=true;
@@ -1313,7 +1326,7 @@ while [ $# -gt 0 ]; do
 	shift
 done # done shifting between arguments
 
-make_practice
+# make_practice
 }
 sanity_check
 make_cycle
@@ -1370,7 +1383,7 @@ if $INSPECT_OPTION; then
 fi
 
 if $MARK_DONE; then
-	make_practice;
+	# make_practice;
 	if test -n "$MARK_VALUE"; then
 		mark_done "$MARK_VALUE";
 	else
@@ -1379,7 +1392,7 @@ if $MARK_DONE; then
 fi
 
 if $MARK_NOT_DONE; then
-	make_practice;
+	# make_practice;
 	if test -n "$MARK_NOT_VALUE"; then
 		mark_not_done "$MARK_NOT_VALUE";
 	else
@@ -1388,6 +1401,7 @@ if $MARK_NOT_DONE; then
 fi
 
 if $RESET_OPTION; then
+	create_score_file
 	backup_practices
 	if [ -f $practice_history_file ]
 	then
@@ -1401,7 +1415,7 @@ fi
 
 if ! $SCORE_OPTION &&  $RESET_OPTION; then
 	rm /tmp/$practice_file;
-	make_practice;
+	# make_practice;
 fi
 
 if $UNINSTALL_OPTION; then
@@ -1417,7 +1431,7 @@ if $UNINSTALL_OPTION; then
 fi
 
 if $REORDER_OPTION; then
-	make_practice
+	# make_practice
 	reorder_cycle;
 fi
 
