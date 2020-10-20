@@ -431,7 +431,7 @@ mark_done() {
 			echo -e $BOLD"Already marked$DEFAULT <$LIGHT_YELLOW$practice_title$DEFAULT> as$BOLD done$DEFAULT";
 		else
 			if $INCREMENT_PROGRESS && [ "$practice_unit" != "complete" ]; then
-				echo -e "Moving progress on <$LIGHT_YELLOW$practice_title$DEFAULT> forward to $GREEN$practice_unit $practice_progress$DEFAULT $VIOLET($[practice_progress * 100 / $practice_total]% - $practice_progress of $practice_total)$DEFAULT"
+				echo -e "Moving <$LIGHT_YELLOW$practice_title$DEFAULT> progress forward to $GREEN$practice_unit $practice_progress$DEFAULT $VIOLET($[practice_progress * 100 / $practice_total]% - $practice_progress of $practice_total)$DEFAULT"
 			elif [ "$practice_unit" == "complete" ] || [ $practice_progress -ge 100 ]; then
 				echo -e "You already finished current resource of <$LIGHT_YELLOW$practice_title$DEFAULT>";
 				return
@@ -486,7 +486,7 @@ mark_not_done() {
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $location/$cycle_file;
 			sed -i s,--.*$PRACTICE_TITLE$,"$SUBSTITUTION$PRACTICE_TITLE", $record_file;
 		else
-			echo -e "Moving progress on <$LIGHT_YELLOW"$practice_title"$DEFAULT> backward to $BOLD$practice_unit $[practice_progress-1]$DEFAULT $VIOLET($[$[practice_progress-1] * 100 / $practice_total]% - $[practice_progress-1] of $practice_total)$DEFAULT"
+			echo -e "Moving <$LIGHT_YELLOW"$practice_title"$DEFAULT> progress backward to $BOLD$practice_unit $[practice_progress-1]$DEFAULT $VIOLET($[$[practice_progress-1] * 100 / $practice_total]% - $[practice_progress-1] of $practice_total)$DEFAULT"
 		fi
 	else
 		echo "Incorrect practice number";
@@ -1283,51 +1283,10 @@ while true; do
 	shift
 done
 
-junk() {
-option_value="";
-while [ $# -gt 0 ]; do
-	# treat option as if it requires value; only options that specify PAIR_OPTION; aka. -d 11
-	if $PAIR_OPTION; then
-		PAIR_OPTION=false; shift; continue;
-	fi
+if ! [ -f /tmp/$practice_file ]; then
+	make_practice
+fi
 
-	# if option is not long then treat as short joint options; aka. -d11
-	if [ $(echo "$1" | grep -Eo "^\--[a-zA-Z][a-zA-Z0-9].*$" | wc -l | cut -d' ' -f1) -gt 0 ]; then
-		script_option=$(echo "$1" | sed 's/^\-//');
-		option_length=$(echo $script_option | wc -c);
-		option_length=$(expr $option_length - 2);
-
-		for option_index in $(seq 1 $option_length); do
-			option_letter=$(echo ${script_option:$option_index:1});
-
-			if $PAIR_OPTION; then
-				if [ $(echo $option_letter | grep -Eo "^[0-9]$" | wc -l) -gt 0 ]; then
-					option_value="$(echo $option_value$option_letter)";
-					if [ $option_index -eq $option_length ]; then
-						PAIR_OPTION=false;
-						shift;
-					else
-						shift; continue;
-					fi
-				fi
-				PAIR_OPTION=false;
-
-				parse_option "-${script_option:0:1}" "$option_value";
-			else
-				parse_option "-${script_option:$option_index:1}" "$option_value";
-				option_value=""
-			fi
-			((option_letter++)); # increment the pointer to next option character
-		done # done shifting between option characters (multiple options)
-	else # aka. --mark-done 11
-		option_value="$2";
-		parse_option "$1" "$option_value";
-	fi
-	shift
-done # done shifting between arguments
-
-# make_practice
-}
 sanity_check
 make_cycle
 
