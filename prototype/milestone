@@ -779,7 +779,7 @@ create_score_file() {
 		-not -path *build* \
 		-regex ".*\.\(py\|cxx\|hpp\|cpp\|cu\|c\|h\|s\|asm\)$" -o \
 		-name "CMakeLists.txt" \
-		| grep -v "moc_predefs.h" \
+		| grep -v "moc_" \
 		> /tmp/score.log
 }
 
@@ -982,22 +982,22 @@ score_practice() {
 	score_files=$(wc -l /tmp/score.log | cut -d' ' -f1)
 
 	if [ $score_files -eq 0 ]; then
-		echo -e $BLUE"Score: 0"$DEFAULT
+		echo -e $LIGHT_BLUE"Score: 0"$DEFAULT
 	elif [ $score_files -eq 1 ]; then
 		only_score=$(wc -l $(cat /tmp/score.log))
 		score=$(echo $only_score | cut -d' ' -f1)
 		score_file=$(echo $only_score | cut -d' ' -f2-)
-		echo -e $BLUE"Score: $score"$DEFAULT
-		echo -e $BLUE"File: $score_file"$DEFAULT
+		echo -e $LIGHT_BLUE"Score: $score"$DEFAULT
+		echo -e $LIGHT_BLUE"File: $score_file"$DEFAULT
 	elif $VERBOSE_OPTION && [ $score_files -gt 1 ]; then
 		score=$(wc -l $(cat /tmp/score.log) | grep total)
-		echo -e $BLUE"Score: $score "$DEFAULT
-		echo -e $BLUE"Files located in: $practice_location\n"
+		echo -e $LIGHT_BLUE"Score: $score "$DEFAULT
+		echo -e $LIGHT_BLUE"Files located in: $practice_location\n"
 		wc -l $(cat /tmp/score.log) | head -n-1 | sed s,$practice_location,...,
 		echo -e $DEFAULT
 	else
 		score=$(wc -l $(cat /tmp/score.log) | grep total)
-		echo -e $BLUE"Score: $score "$DEFAULT
+		echo -e $LIGHT_BLUE"Score: $score "$DEFAULT
 	fi
 	language_analyzer $practice_location
 }
