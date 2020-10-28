@@ -779,6 +779,7 @@ create_score_file() {
 		-not -path *build* \
 		-regex ".*\.\(py\|cxx\|hpp\|cpp\|cu\|c\|h\|s\|asm\)$" -o \
 		-name "CMakeLists.txt" \
+		| grep -v "moc_predefs.h" \
 		> /tmp/score.log
 }
 
@@ -1072,11 +1073,12 @@ do
 		if $code_block; then
 			code_block=false
 			skipped_flag=false
+			read < /dev/tty
 		else
 			code_block=true
 			skipped_flag=true
+			continue
 		fi
-		continue
 	# next main topic
 	elif [ $topic -eq 1 ] && [ $nexttopic -eq 0 ] && ! $code_block; then
 		if [ -f $practice_history_tree ]; then
@@ -1095,18 +1097,24 @@ do
 			if $DEBUG; then echo -n $linedepth+$nextdepth; fi
 			echo -e "$line" | sed "s/\t/$TABSTRING/g" | tee -a $practice_history_tree
 		# deepest topic
-		elif [ $nextdepth -le $linedepth ]; then
+		elif [ $nextdepth -le $linedepth -o $code_block ]; then
 			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			echo -en $(tput setaf 82)"$line" |\
+			if $code_block; then practice_color=3; else practice_color=82; fi
+			echo -en $(tput setaf $practice_color)"$line" |\
 			   	sed -r\
 				-e "s/,$//"\
 				-e "s/\t/$TABSTRING/g"\
-				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf 82)/"\
-				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf 82)/"\
-				-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf 82)/"\
-				-e "s/\{%([^\{%]*)%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput setaf 82)/g"\
+				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
+				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
+				-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
+				-e "s/\{%([^\{%]*)%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput setaf $practice_color)/g"\
 				&& tput sgr0
-			if [ $(echo "$line" | grep -Eo "\,$" | wc -l) -eq 1 ]; then
+
+			if $code_block
+			then
+				echo
+				continue
+			elif [ $(echo "$line" | grep -Eo "\,$" | wc -l) -eq 1 ]; then
 				if $DEBUG; then echo -n " skipping "; fi
 				echo
 				skipped_flag=true
@@ -1120,6 +1128,8 @@ do
 				if $DEBUG; then echo -n " line: $line_counter"; fi
 				read input < /dev/tty
 			fi
+		else
+			tput bold; echo $LINENO $line; tput sgr0
 		fi
 	fi
 
