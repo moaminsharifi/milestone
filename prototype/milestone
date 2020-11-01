@@ -70,7 +70,7 @@ DEBUG=false
 SCORE_OPTION=false;
 LOOKUP_TEXT=;
 TABSIZE=4
-TABSTRING=$(printf "%0.s\ " $(seq 1 $TABSIZE))
+TABSTRING=$(printf "%0.s " $(seq 1 $TABSIZE))
 TABSTRING_ESCAPED=$(echo "$TABSTRING" | sed 's/\ /\\ /g')
 WRITE_NOTE_OPTION=false;
 CHECK_NOTE=false;
@@ -1004,7 +1004,7 @@ score_practice() {
 
 daily_practice() {
 	ret=0
-	code_block=false
+	local code_block=0
 
 if [ -n "$LOOKUP_TEXT" ] && [ "$LOOKUP_TEXT" != "-" ]; then
 	match=$(awk -v title="$LOOKUP_TEXT" 'BEGIN{FS=RS; IGNORECASE=1} $1 ~ "^[^\t]*"title' $practice_tree)
@@ -1040,15 +1040,45 @@ else
 	line_counter=0;
 fi
 
-skipped_flag=false
+local linedepth
+local topic
+local nextline
+local nextdepth
+local nexttopic
+local line
+local code_sign
+local next_code_sign
+
+skipped_flag=0
+local IFS_OLD="$IFS"
 while IFS= read -r line
 do
-	linedepth=$(echo "$line" | grep -oP "\t" | wc -l)
-	topic=$(echo "$line" | grep -oP "^[^\t]" | wc -l)
-	nextline=$(grep -A1 -E "^$line$" $practice_tree 2>/dev/null | sed 1d)
-	nextdepth=$(echo "$nextline" | grep -oP "\t" | wc -l)
-	nexttopic=$(echo "$nextline" | grep -oP "^[^\t]" | wc -l)
-	line=$(echo "$line" | sed "s/^\t/$TABSTRING/g")
+	nextline="$(sed -n "/$line/{n;p}" $practice_tree 2>/dev/null)"
+	line=${line//\[/\\\[} # escape [
+	line=${line//\//\\\/} # escape /
+	linedepth=${line//[^$'\t']*/}; linedepth=${#linedepth}
+	nextdepth="${nextline//[^$'\t']*/}"; nextdepth=${#nextdepth}
+	topic="${line//[^$'\t']*/}"; topic=${#topic}
+	nexttopic="${nextline//[^$'\t']*/}"; nexttopic=${#nexttopic}
+	nextline="${nextline//$'\t'/}"
+	line=${line//\\\[/[} # un-escape [
+	line=${line//\\\///} # un-escape /
+
+	if [ "${line//$'\t'/}" = '"""' ]
+	then
+		code_sign=1
+	else
+		code_sign=0
+	fi
+
+	if [ "$nextline" = '"""' ]
+	then
+		next_code_sign=1
+	else
+		next_code_sign=0
+	fi
+
+	line="${line//$'\t'/$TABSTRING}"
 
 	# make history
 	echo $line_counter > $practice_history_file;
@@ -1064,77 +1094,85 @@ do
 		fi
 	fi
 
-	# consequitive root levels are ignored
-	if [ $topic -eq 1 ] && [ $nexttopic -eq 1 ]; then
-		((++line_counter));
-		continue
-	# enter code block
-	elif [ $(echo $line | grep -c '"""') -gt 0 ]; then
-		if $code_block; then
-			code_block=false
-			skipped_flag=false
-			read < /dev/tty
-		else
-			code_block=true
-			skipped_flag=true
-			continue
-		fi
-	# next main topic
-	elif [ $topic -eq 1 ] && [ $nexttopic -eq 0 ] && ! $code_block; then
-		if [ -f $practice_history_tree ]; then
-			rm $practice_history_tree
-		fi
+	if [ $linedepth -eq 0 -a $nextdepth -eq 0 ]
+	then # consequitive root levels are ignored
+		break
+	elif [ $linedepth -eq 0 -a $nextdepth -eq 1 ]
+	then # main topic
+		if [ -f $practice_history_tree ]; then rm $practice_history_tree; fi
 
 		# if lookup option used, only bring that specific practice and leave when finished
-		if [ -n "$LOOKUP_TEXT" ] && [ "$line" != "$match" ]; then break; fi
+		if [ -n "$LOOKUP_TEXT" -a "$line" != "$match" ]; then break; fi
 
-		if $DEBUG; then echo -n $linedepth\#$nextdepth; fi
+		if $DEBUG; then echo -n $code_block\#$linedepth\#$nextdepth; fi
 		echo -e $(tput setaf 39)"$line"$(tput sgr0) | tee -a $practice_history_tree
-	# deeper topic
-	elif [ $topic -eq 0 ]; then
-		# next non-zero level topic
-		if [ $nextdepth -gt $linedepth ] && ! $code_block; then
-			if $DEBUG; then echo -n $linedepth+$nextdepth; fi
-			echo -e "$line" | sed "s/\t/$TABSTRING/g" | tee -a $practice_history_tree
-		# deepest topic
-		elif [ $nextdepth -le $linedepth -o $code_block ]; then
-			if $DEBUG; then echo -n $linedepth $nextdepth; fi
-			if $code_block; then practice_color=3; else practice_color=82; fi
-			echo -en $(tput setaf $practice_color)"$line" |\
-			   	sed -r\
-				-e "s/,$//"\
-				-e "s/\t/$TABSTRING/g"\
-				-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
-				-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
-				-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
-				-e "s/\{%([^\{%]*)%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput setaf $practice_color)/g"\
-				&& tput sgr0
+		((++line_counter));
+	elif [ $code_sign -eq 1 ]
+	then # enter code block
+		if $DEBUG; then echo -n $code_block\$$linedepth\$$nextdepth; fi
+		if $DEBUG; then echo -e "$line" | tee -a $practice_history_tree; fi
 
-			if $code_block
-			then
-				echo
-				continue
-			elif [ $(echo "$line" | grep -Eo "\,$" | wc -l) -eq 1 ]; then
-				if $DEBUG; then echo -n " skipping "; fi
-				echo
-				skipped_flag=true
-				continue
-			else
-				if $skipped_flag; then
-					if $DEBUG; then echo -n " skipped "; fi
-					((++line_counter));
-					skipped_flag=false;
-				fi
-				if $DEBUG; then echo -n " line: $line_counter"; fi
-				read input < /dev/tty
-			fi
+		if [ $code_block -eq 1 ]
+		then
+			code_block=0
+			skipped_flag=0
+			read < /dev/tty
 		else
-			tput bold; echo $LINENO $line; tput sgr0
+			code_block=1
+			skipped_flag=1
+			continue
 		fi
+		((++line_counter));
+	elif [ $nextdepth -gt $linedepth -a $code_block -eq 0 ]
+	then # next topic
+		if $DEBUG; then echo -n $code_block+$linedepth+$nextdepth; fi
+		echo -e "$line" | tee -a $practice_history_tree
+	elif [ $nextdepth -le $linedepth -o $code_block -eq 1 ]
+	then # deepest topic
+		if $DEBUG; then echo -n $code_block $linedepth $nextdepth; fi
+		if [ $code_block -eq 1 ]; then practice_color=3; else practice_color=82; fi
+		tput setaf $practice_color
+		echo -ne "$line" |\
+			sed -r\
+			-e "s/,$//"\
+			-e "s/(\([^\)]*)\[(depricate|obsolete|obsolescence)([^,\)]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
+			-e "s/([^\(]*)\[(depricate|obsolete|obsolescence)([^\n]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
+			-e "s/(,[^,]*)\[(depricate|obsolete|obsolescence)([^,]*)/\1$(tput setaf 248)$(tput dim)\[\2\3$(tput sgr0)$(tput setaf $practice_color)/"\
+			-e "s/\{%([^\{%]*)%\}/$(tput dim)\{\1\}$(tput sgr0)$(tput setaf $practice_color)/g"\
+			&& tput sgr0
+
+		if [ $code_block -eq 1 ]
+		then
+			echo
+			continue
+		elif [ $(echo "$line" | grep -Eo "\,$" | wc -l) -eq 1 ]; then
+			if $DEBUG; then tput bold; echo -n " skipping "; tput sgr0; fi
+			echo
+			skipped_flag=0
+			continue
+		else
+			if [ $skipped_flag -eq 1 ]
+			then
+				if $DEBUG; then tput bold; echo -n " skipped "; tput sgr0; fi
+				((++line_counter));
+				skipped_flag=0;
+			fi
+			if $DEBUG; then echo -n " line: $line_counter"; fi
+			if [ $nextdepth -lt $linedepth ]
+			then # roll over for same depth lines and pause at the end
+				read input < /dev/tty
+			else
+				echo
+			fi
+		fi
+	else # exceptional case which is an error
+		if $DEBUG; then echo -n $code_block-$linedepth-$nextdepth; fi
+		tput bold; echo $LINENO $line; tput sgr0
 	fi
 
 	((++line_counter));
 done <<< $(tail -n +$line_counter $practice_tree)
+IFS="$IFS_OLD"
 
 if [ -f $practice_history_file ]; then
 	rm $practice_history_file;
