@@ -1,0 +1,8 @@
+This is a sample practice and you need to try it yourself.
+First take a look at the code, then see how it is compiled,
+linked and executed.
+Then check what value the program takes as input, and what
+does it give as output.
+Finally, read this comment to understand the details about
+the practice itself.
+You can go to next page using quick access section.

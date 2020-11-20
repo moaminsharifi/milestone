@@ -1,0 +1,1049 @@
+#!/usr/bin/env bash
+
+## description: outputs string with style and color
+## usage: show [%style%/%color%] [string] ... [string]
+## style list:
+##     default normal bold italic strike-through blink
+##     inline newline space align
+## color list: black red green yellow blue magenta cyan white
+## note: style and colors should be embraced by % sign
+## note: only the last similar attribute in consecutive attributes is affected
+## note: %inline% and %newline% attributes affect the whole line
+## note: to align next lines, use %align% in string
+function show {
+	local output_style=sgr0
+	local output_color
+	local output_string
+	local trailing_newline=true
+	local word
+	local margin
+	local count_words=0
+
+	if [ $# -eq 0 ]
+	then
+		echo
+		return
+	fi
+
+	while [ $# -gt 0 ]
+	do
+		count_words="$(echo "$1" | wc -m)"
+		for word in $1
+		do
+			case $word in
+				# styles
+				%bold%) output_style=${word//%/} ;;
+				%normal%|default) output_style=sgr0; output_color= ;;
+				%italic%) output_style=sgr0 ;;
+				%strike-through%) output_style=sgr0 ;;
+				%dim%) output_style=${word//%/} ;;
+				%inline%) trailing_newline=false ;;
+				%newline%) echo ;;
+				%blink%) output_style=sgr0 ;;
+				%space%) echo -n " " ;;
+				%align%)
+					if [ "$alignment_position" -gt 0 ]
+					then
+						printf "%.0s " $(seq 2 "$alignment_position")
+					fi ;;
+				# colors
+				%black%) output_color=0 ;;
+				%red%) output_color=1 ;;
+				%green%) output_color=2 ;;
+				%yellow%) output_color=3 ;;
+				%blue%) output_color=4 ;;
+				%magenta%) output_color=5 ;;
+				%cyan%) output_color=6 ;;
+				%white%) output_color=7 ;;
+				# string
+				*)
+					# set output style first, then coloring
+					tput $output_style
+					if [ -n "$output_color" ]
+					then
+						tput setaf $output_color
+					fi
+
+					# store alignment position globally for next execution
+					margin="${1%&align*}"
+					margin="${#margin}"
+					output_string=$word
+					if [ "$margin" -lt "${#1}" ]
+					then
+						alignment_position=$((margin + 1))
+						output_string="${word//&align/}"
+					elif [ -z "$alignment_position" ]
+					then
+						alignment_position=0
+					fi
+
+					echo -ne "$output_string"
+					if [ "$count_words" -gt 1 ] && [ "$word" != "&align" ]
+					then
+						echo -n " "
+					fi
+					((count_words--))
+					;;
+			esac
+		done
+		shift
+	done
+	
+	# trailing newline is set unless inline attribute given
+	if $trailing_newline;
+	then
+		echo
+	fi
+}
+
+# terminates script executaion after call
+function usage {
+	echo "Practice Page Manager"
+	echo
+	echo "Usage: run under a practice directoy"
+	echo
+	echo "Options:"
+	echo
+	echo "  -a, --add_practice <path/to/directory> <page_name> [#position]"
+	echo "  -A, --add_chapter <path/to/directory> <chapter_name> [#position]"
+	echo
+	echo "  -j, --join_practice <path/to/file> [#position]"
+	echo "  -J, --join_chapter <path/to/directory> [#position]"
+	echo
+	echo "  -r, --remove_practice <path/to/file>"
+	echo "  -R, --remove_chapter <path/to/directory>"
+	echo
+	echo "  -m, --move_practice <source> <destination> [#position]"
+	echo "  -M, --move_chapter <source> <destination> [#position]"
+	echo
+	exit 0
+}
+
+# requires absolute path to source to configure corresponding variables
+function update_configuration {
+	local directory
+	local config
+
+	for level in ${1//\//$'\n'}
+	do
+		if [ -d "$directory$level" ]
+		then
+			directory="$directory$level/"
+		elif [ -f "$directory$level" ]
+		then
+			directory="$directory${level%.*}"
+		fi
+
+		config="$directory.config"
+
+		if [ -f "$config" ]
+		then
+			source "$config"
+		fi
+	done
+}
+
+function generate_execution_section {
+	echo "  <h2>Execution</h2>" >> "./html-files/${index}.html"
+}
+
+# requires path to page
+# requires compile/link/run option
+# requires command
+function generate_execution_mode {
+	local page="${1}"
+	local mode="${2:-compile}"
+	local command="${3}"
+
+	if [ -z "$command" ]
+	then
+		tput bold
+		echo "execution command not specified: $page"
+		tput sgr0
+		return 1
+	fi
+
+	echo "  <h4>${mode}</h4>"  >> "./html-files/${index}.html"
+	echo "   <p class=\"command-style\">${command}</p>" >> "./html-files/${index}.html"
+}
+
+# requires absolute path to source
+function compile_source {
+	update_configuration "$1"
+
+	if [ "$EXECUTABLE" != "true" ]
+	then
+		return 2
+	fi
+
+	generate_execution_section "$1"
+
+	local binary="${1%.*}.bin"
+	local object="${1%.*}.o"
+	local output="${1%.*}.output.txt"
+	local execution_command
+	local output_change_time
+	local source_change_time
+
+	if [ "$COMPILABLE" = "true" ] && [ -z "$COMPILER" ]
+	then
+		echo "$COMPILABLE $COMPILER"
+		tput bold
+		echo "compiler not specified for: $1" >&2
+		tput sgr0
+		return 1
+	fi
+
+	source_change_time=$(stat -c "%Y" "$1")
+
+	if [ -f "$output" ]
+	then
+		output_change_time=$(stat -c "%Y" "$output")
+	else
+		output_change_time=0
+	fi
+
+	if ! [ -f "$output" ] || [ "$source_change_time" -gt "$output_change_time" ]
+	then
+		if [ "$COMPILABLE" = "true" ]
+		then
+			execution_command="$COMPILER $COMPILER_OPTIONS $object $1"
+			if ! $execution_command
+			then
+				tput bold
+				echo "compilation error: $1" >&2
+				tput sgr0
+				return 1
+			fi
+		else
+			execution_command="$COMPILER $COMPILER_OPTIONS $1"
+			if [ -f "$binary" ]
+			then
+				unlink "$binary"
+			fi
+			ln -s "$PWD/$1" "$binary"
+		fi
+		generate_execution_mode "$1" compile "$execution_command"
+	else
+		if [ "$COMPILABLE" = "true" ]
+		then
+			execution_command="$COMPILER $COMPILER_OPTIONS ${object##*/} ${1##*/}"
+			generate_execution_mode "$1" compile "$execution_command"
+		else
+			execution_command="$COMPILER $COMPILER_OPTIONS ${1##*/}"
+			generate_execution_mode "$1" compile "$execution_command"
+		fi
+	fi
+
+	execution_command="$LINKER $LINKER_OPTIONS $binary $object"
+
+	if ! [ -f "$output" ] || [ "$source_change_time" -gt "$output_change_time" ]
+	then
+		if [ "$COMPILABLE" = "true" ] && [ -n "$LINKER" ]
+		then
+			if ! $execution_command
+			then
+				tput bold
+				echo "linkage error for: $1" >&2
+				tput sgr0
+				return 1
+			fi
+		elif [ "$COMPILABLE" = "true" ] && [ -z "$LINKER" ]
+		then
+			tput bold
+			echo "linker not specified for: $1" >&2
+			tput sgr0
+			return 1
+		fi
+	fi
+
+	execution_command="$LINKER $LINKER_OPTIONS ${binary##*/} ${object##*/}"
+	generate_execution_mode "$1" link "$execution_command"
+}
+
+# requires path to page
+# requires begin/end as second parameter
+function generate_html_section {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local side="${2:-begin}"
+	
+	if [ "$side" = "begin" ]
+	then
+		cat << EOF >> "./html-files/${index}.html"
+<!DOCTYPE html>
+<html lang="en_US">
+EOF
+	else
+		cat << EOF >> "./html-files/${index}.html"
+</html>
+EOF
+	fi
+}
+
+# requires path to page
+# requires begin/end as second parameter
+function generate_html_head {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local side="${2:-begin}"
+	local title="${3:-$page}"
+	
+	if [ "$side" = "begin" ]
+	then
+		cat << EOF >> "./html-files/${index}.html"
+ <head>
+  <meta name="viewport" charset="UTF-8" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+EOF
+	else
+		cat << EOF >> "./html-files/${index}.html"
+ </head>
+EOF
+	fi
+}
+
+# requires path to page
+# requires header size
+# requires title
+function generate_html_header {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local size="${2:-1}"
+	local title="${3:-header}"
+
+	echo " <h${size}>$title</h${size}>" >> "./html-files/${index}.html"
+}
+
+# requires path to page
+# optional style names [multiple names allowed]
+function generate_style {
+	local page="${1%.*}"
+	page="${page##*/}"
+
+	echo "  <style>" >> "./html-files/${index}.html"
+
+	# default style
+	cat << EOF >> "./html-files/${index}.html"
+   hr {
+     width:50%;
+     margin-left:0;
+     height:1px;
+     border-width:0;
+     color:gray;
+     background-color:gray;
+   }
+EOF
+
+	echo "  </style>" >> "./html-files/${index}.html"
+}
+
+# requires path to page
+# requires begin/end as second parameter
+function generate_html_body {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local side="${2:-begin}"
+	
+	if [ "$side" = "begin" ]
+	then
+		cat << EOF >> "./html-files/${index}.html"
+ <body>
+EOF
+	else
+		cat << EOF >> "./html-files/${index}.html"
+ </body>
+EOF
+	fi
+}
+
+# requires path to page
+# optional css style name
+function generate_html_code {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local side="${2:-begin}"
+	local css_style="$3"
+	local code_tag
+
+	if [ -n "$css_style" ]
+	then
+		code_tag="<code class=\"${css_style}\">"
+	else
+		code_tag="<code>"
+	fi
+
+	if [ "$side" = "begin" ]
+	then
+		cat << EOF >> "./html-files/${index}.html"
+  <pre>
+   ${code_tag}
+EOF
+	else
+		cat << EOF >> "./html-files/${index}.html"
+   </code>
+  </pre>
+EOF
+	fi
+}
+
+# requires path to page
+# optional css style name
+function generate_html_div {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local side="${2:-begin}"
+	local css_style="$3"
+	local div_tag
+
+	if [ -n "$css_style" ]
+	then
+		div_tag="<div class=\"${css_style}\">"
+	else
+		div_tag="<div>"
+	fi
+
+	if [ "$side" = "begin" ]
+	then
+		cat << EOF >> "./html-files/${index}.html"
+  ${div_tag}
+EOF
+	else
+		cat << EOF >> "./html-files/${index}.html"
+  </div>
+EOF
+	fi
+}
+
+# requires path to page
+# requires link
+# requires title
+function generate_html_link {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local link="${2:-#}"
+	local title="${3:-link}"
+
+	echo "    <a href=\"$link\">$title</a>" >> "./html-files/${index}.html"
+}
+
+# requires path to page
+# optional minimum depth as second parameter
+# returns 0 if successfully indexed to depth, and greater than 0 on error
+function index_page {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local depth=0
+	local min_depth="${2:-1}"
+	local entry
+	local hierarchy
+	# FIXME: index should not be global
+	index=
+	local match
+	local digit_pad
+
+	for entry in ${1//\//$'\n'}
+	do
+		if [ -n "$hierarchy" ]
+		then
+			hierarchy="${hierarchy}/${entry}"
+		else
+			hierarchy="$entry"
+		fi
+
+		if [ "$depth" -lt "$min_depth" ]
+		then
+			((depth++))
+			continue
+		fi
+
+		if [ -d "$hierarchy" ]
+		then
+			if ! [ -f "${hierarchy}/.index" ]
+			then
+				tput bold
+				echo "hierarchy not indexed: $hierarchy" >&2
+				tput sgr0
+				return 1
+			fi
+		elif [ -f "$hierarchy" ]
+		then
+			if [ "$entry" = "README.md" ]
+			then
+				index="${index}${digit_pad}0."
+				break
+			fi
+
+			if [ "$(grep -c "$entry" "${hierarchy%/*}/.index")" -ne 1 ]
+			then
+				tput bold
+				echo "page not indexed in hierarchy: $hierarchy" >&2
+				tput sgr0
+				return 3
+			fi
+		else
+			tput bold
+			echo "broken hierarchy: $hierarchy" >&2
+			tput sgr0
+			return 4
+		fi
+
+		match="$(grep -n "$entry" "${hierarchy%/*}/.index")"
+		match="${match%%:*}"
+		if [ "${#match}" -eq 1 ]
+		then
+			match="${digit_pad}${match}"
+		fi
+		index="${index}${match}."
+		((depth++))
+	done
+
+	index="${index%.}"
+}
+
+# requires path to page
+function find_neighbor_index {
+	local page="${1##*/}"
+	local old_index="$index"
+	local match
+
+	page="${page##*/}"
+	next_index=
+	previous_index=
+	top_index=
+
+	match="$(grep -A1 "$page" "${1%/*}/.index")"
+	match="${match##*$'\n'}"
+	match="${match%% *}"
+	if [ "$match" = "$page" ]
+	then
+		find_neighbor_index "${1%/*}"
+	else
+		index_page "$match"
+		next_index="$index"
+	fi
+
+	match="$(grep -B1 "$page" "${1%/*}/.index")"
+	match="${match%%$'\n'*}"
+	match="${match%% *}"
+	if [ "$match" = "$page" ]
+	then
+		find_neighbor_index "${1%/*}"
+	else
+		index_page "$match"
+		previous_index="$index"
+	fi
+
+	index="$old_index"
+}
+
+function generate_index_section {
+	local tag="<h1>"
+
+	echo -n "  ${tag}${index}. " >> "./html-files/${index}.html"
+}
+
+# requires path to page
+function generate_header_section {
+	local page="${1%.*}"
+	local header="$page.title.txt"
+	page="${page##*/}"
+	local title
+	local tag_end
+
+	if ! [ -f "$header" ]
+	then
+		tput bold
+		echo "header not found: $header" >&2
+		tput sgr0
+	elif [ -z "$(cat "$header")" ]
+	then
+		tput bold
+		echo "empty header: $header" >&2
+		echo "$tag_end" >> "./html-files/${index}.html"
+		tput sgr0
+	else
+		title="$(cat "$header")"
+		tag_end="</h1>"
+		echo "${title}${tag_end}" >> "./html-files/${index}.html"
+	fi
+}
+
+# requires path to page
+function generate_page_name {
+	local tag="<cite>"
+	local tag_end="</cite>"
+
+	echo "  ${tag}${1##*/}${tag_end}" >> "./html-files/${index}.html"
+	echo "  <hr />" >> "./html-files/${index}.html"
+}
+
+# requires path to page
+function generate_source_section {
+	generate_html_header "$1" 2 "Source"
+	while [ $# -gt 0 ]
+	do
+		generate_page_name "${1}"
+		generate_html_code "$1" begin
+		OLD_IFS="$IFS"
+		IFS=
+		local line
+		while read -r line
+		do
+			line="${line//&/&amp;}"
+			line="${line//$'"'/&quot;}"
+			line="${line//\'/&apos;}"
+			line="${line//</&lt;}"
+			line="${line//>/&gt;}"
+			echo "    $line" >> "./html-files/${index}.html"
+		done < "$1"
+		IFS="$OLD_IFS"
+		generate_html_code "$1" end
+		shift
+	done
+}
+
+# requires absolute path to page
+function generate_output_section {
+	local page="${1%.*}"
+	local binary="$page.bin"
+	local output="$page.output.txt"
+	local input="$page.input.txt"
+	page="${page##*/}"
+
+	if ! compile_source "$1"
+	then
+		return 1
+	fi
+
+	if ! [ -f "$binary" ]
+	then
+		tput bold
+		echo "binary file not generated: $binary" >&2
+		tput sgr0
+		return 1
+	fi
+
+	if [ "$COMPILABLE" = "true" ]
+	then
+		if [ -f "$input" ]
+		then
+			"$binary" < "$input" > "$output"
+		else
+			"$binary" > "$output"
+		fi
+		generate_execution_mode "$1" run "./${binary##*/}"
+	else
+		if [ -f "$input" ]
+		then
+			"$COMPILER" "$binary" < "$intput" > "$output"
+		else
+			"$COMPILER" "$binary" > "$output"
+		fi
+		generate_execution_mode "$1" run "$COMPILER ${binary##*/}"
+	fi
+	echo >> "$output"
+
+	local line
+	if [ -f "$input" ]
+	then
+		echo "  <h2>Input</h2>" >> "./html-files/${index}.html"
+
+		generate_html_div "$1" begin input-style
+		while read -r line
+		do
+			echo "   $line" >> "./html-files/${index}.html"
+		done < "$input"
+		generate_html_div "$1" end
+	fi
+
+	echo "  <h2>Output</h2>" >> "./html-files/${index}.html"
+
+	generate_html_div "$1" begin output-style
+	if ! [ -f "$output" ]
+	then
+		tput bold
+		echo "output file not found: $output" >&2
+		tput sgr0
+	else
+		while read -r line
+		do
+			echo "   $line" >> "./html-files/${index}.html"
+		done < "$output"
+	fi
+	generate_html_div "$1" end
+}
+
+# requires absolute path to page
+function generate_comment_section {
+	update_configuration "$1"
+
+	if [ "$COMMENTS" != "true" ]
+	then
+		return 1
+	fi
+
+	local page="${1%.*}"
+	local comment="$page.comment.txt"
+	page="${page##*/}"
+
+	if ! [ -f "$comment" ]
+	then
+		tput bold
+		echo "comment not found: $comment" >&2
+		tput sgr0
+	elif [ -z "$(cat "$comment")" ]
+	then
+		tput bold
+		echo "empty comment: $comment" >&2
+		tput sgr0
+	else
+		generate_html_div "$1" begin comment-style
+		OLD_IFS="$IFS"
+		local line
+		while read -r line
+		do
+			echo -e "   ${line/.\n/.EOL<br />}" >> "./html-files/${index}.html"
+		done < "$comment"
+		IFS="$OLD_IFS"
+		generate_html_div "$1" end
+	fi
+}
+
+# requires absolute path to page
+function generate_toc_section {
+	local page="${1%.*}"
+	page="${page##*/}"
+
+	find_neighbor_index "$1"
+	generate_html_header "$1" 2 "Quick Access"
+	generate_html_div "$1" begin
+	generate_html_link "$1" "${previous_index}.html" "previous page"
+	generate_html_link "$1" "${next_index}" "next page"
+	generate_html_div "$1" end
+}
+
+function generate_index_page {
+	local page="./html-files/index.html"
+	index=index
+
+	generate_html_section "$page" begin
+	generate_html_head "$page" begin Practices
+	generate_html_head "$page" end
+	generate_html_body "$page" begin
+	generate_html_link "$page" "1.0.html" "first page"
+	generate_html_body "$page" end
+	generate_html_section "$page" end
+}
+
+# requires path to page
+function generate_page {
+	index_page "$1"
+	generate_html_section "$1" begin
+	generate_html_head "$1" begin
+	generate_style "$1"
+	generate_html_head "$1" end
+	generate_html_body "$1" begin
+	generate_index_section "$1"
+	generate_header_section "$1"
+	generate_comment_section "$1"
+	generate_source_section $@
+	generate_output_section $@
+	generate_toc_section "$1"
+	generate_html_body "$1" end
+	generate_html_section "$1" end
+	index=
+}
+
+# requires absolute path to page
+function generate_chapter {
+	index_page "$1/README.md"
+	generate_html_section "$1/README.md" begin
+	generate_html_head "$1/README.md" begin
+	generate_style "$1/README.md"
+	generate_html_head "$1/README.md" end
+	generate_html_body "$1/README.md" begin
+	generate_index_section "$1/README.md"
+	generate_header_section "$1/README.md"
+	generate_comment_section "$1/README.md"
+	generate_toc_section "$1/README.md"
+	generate_html_body "$1/README.md" end
+	generate_html_section "$1/README.md" end
+	index=
+}
+
+# requires absolute path to page
+function generate_configuration {
+	local page
+
+	if [ -f "$1" ]
+	then
+		page="${1%.*}.config"
+	elif [ -d "$1" ]
+	then
+		page="${1%/}/.config"
+	fi
+
+	cat << EOF > "$page"
+COMPILER=
+COMPILER_OPTIONS=
+COMPILABLE=true
+LINKER=
+LINKER_OPTIONS=
+EXECUTABLE=true
+COMMENTS=true
+ADDITIONAL_EXTENSIONS="reference.txt comment.txt title.txt"
+# levels: amateur, intermediate, expert
+TECHNICAL_LEVEL=
+EOF
+}
+
+# requires relative path to list
+function expand_list {
+	local directory
+	local members
+	local group
+
+	directory="${1%/*}"
+
+	if ! [ -f "$1" ]
+	then
+		tput bold
+		echo "unindexed directory: $directory/" >&2
+		tput sgr0
+		return 1
+	fi
+
+	local line
+	while read -r line
+	do
+		members="$(echo "$line" | wc -w)"
+
+		if [ "$members" -gt 1 ]
+		then
+			for file in $line
+			do
+				if [ -f "$directory/$file" ]
+				then
+					group="$group $directory/$file"
+				else
+					tput bold
+					echo "missing group member: $directory/$file" >&2
+					tput sgr0
+					continue 2
+				fi
+			done
+			generate_page $group
+		elif [ -f "$directory/$line" ]
+		then
+			generate_page "$directory/$line"
+		elif [ -d "$directory/$line" ]
+		then
+			generate_chapter "$directory/$line"
+			expand_list "$directory/$line/.index"
+		else
+			tput bold
+			echo "missing entry: $directory/$line" >&2
+			tput sgr0
+		fi
+		group=
+	done < "$1"
+}
+
+# requires full path to first index file to recusrively build document
+# must be called with trailing ./ in first argument
+function generate_manuals {
+	if [ -d ./html-files/ ]
+	then
+		rm -r ./html-files/
+	fi
+
+	mkdir ./html-files/
+
+	generate_index_page
+
+	expand_list "$1"
+}
+
+# requires path to location where practice will be added
+# requires practice name as second parameter
+# optional position as third paramter
+function add_practice {
+	local location="${1%/}"
+	local practice_name="$2"
+	local position="$3"
+
+	if [ -z "$location" ]
+	then
+		tput bold
+		echo "location not given" >&2
+		tput sgr0
+		return 1
+	elif [ -z "$practice_name" ]
+	then
+		tput bold
+		echo "practice name not given" >&2
+		tput sgr0
+		return 1
+	elif ! [ -d "$location" ]
+	then
+		tput bold
+		echo "location must be a directory" >&2
+		tput sgr0
+		return 1
+	elif [ $(grep -c "$practice_name" "${location}/.index") -gt 0 ]
+	then
+		tput bold
+		echo "duplicate practice name: $practice_name" >&2
+		tput sgr0
+	fi
+
+	# index practice in corresponding location
+	if [ -n "$position" ] && [ -f "${location}/.index" ]
+	then
+		sed -i "${position}i ${practice_name}" "${location}/.index"
+	else
+		echo "$practice_name" >> "${location}/.index"
+	fi
+
+	# create practice file itself
+	touch "${location}/${practice_name}"
+
+	# create additional extensions
+	generate_configuration "${location}/${practice_name}"
+
+	update_configuration "${location}/${practice_name}"
+
+	practice_name="${practice_name%.*}"
+	for extension in $ADDITIONAL_EXTENSIONS
+	do
+		if [ "$extension" = "comment.txt" ] && [ "$COMMENTS" != "true" ]
+		then
+			continue
+		fi
+
+		touch "${location}/${practice_name}.${extension}"
+	done
+
+	echo "files created:"
+	find "${location//$PWD/.}" -type f -name "${practice_name}*" | nl
+}
+
+# requires path to location where chapter will be added
+# requires chapter name as second parameter
+# optional position as third paramter
+function add_chapter {
+	local location="${1%/}"
+	local chapter_name="$2"
+	local position="$3"
+
+	if [ -z "$location" ]
+	then
+		tput bold
+		echo "location not given" >&2
+		tput sgr0
+		return 1
+	elif [ -z "$chapter_name" ]
+	then
+		tput bold
+		echo "chapter name not given" >&2
+		tput sgr0
+		return 1
+	elif ! [ -d "$location" ]
+	then
+		tput bold
+		echo "location must be a directory" >&2
+		tput sgr0
+		return 1
+	fi
+
+	# index chapter in corresponding location
+	if [ -n "$position" ] && [ -f "${location}/.index" ]
+	then
+		sed -i "${position}i ${chapter_name}" "${location}/.index"
+	else
+		echo "$chapter_name" >> "${location}/.index"
+	fi
+
+	mkdir "${location}/${chapter_name}"
+	echo "# $chapter_name" > "${location}/${chapter_name}/README.md"
+
+	# create additional extensions
+	generate_configuration "${location}/${chapter_name}"
+
+	update_configuration "${location}/${chapter_name}/README.md"
+
+	for extension in $ADDITIONAL_EXTENSIONS
+	do
+		touch "${location}/${chapter_name}/README.${extension}"
+	done
+
+	echo "files created:"
+	find "${location//$PWD/.}/${chapter_name}/" -type f | nl
+}
+
+# requires relative path to practice location
+# requires page name as second argument
+# optional page index as third argument
+function join_practice {
+	local location="${1%/}"
+}
+
+function join_chapter {
+	local location="${1%/}"
+}
+
+function remove_practice {
+	local location="${1%/}"
+}
+
+function remove_chapter {
+	local location="${1%/}"
+}
+
+function move_practice {
+	local location="${1%/}"
+}
+
+function move_chapter {
+	local location="${1%/}"
+}
+
+function touch_sources {
+	find -type f -name ".index" -exec sh -c '
+		directory="{}";
+		while read -r file;
+		do
+			filename="${directory%/*}/$file";
+			if [ -f "$filename" ];
+			then
+				touch "$filename";
+			fi;
+		done < {};' \;
+}
+
+###############################################################################
+# Parameter Parser
+
+if [ $# -eq 0 ]
+then
+	generate_manuals "./.index"
+else
+	while [ $# -gt 0 ]
+	do
+		case "$1" in
+			-h|--help) usage ;;
+			-a|--add-practice) add_practice "$PWD/$2" "$3" "$4"; shift 3 ;;
+			-A|--add-chapter) add_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
+			-j|--join-practice) join_practice "$PWD/$2" "$3"; shift 2 ;;
+			-J|--join-chapter) join_chapter "$PWD/$2" "$3"; shift 2 ;;
+			-r|--remove-practice) remove_practice "$PWD/$2"; shift 1 ;;
+			-R|--remoe-chapter) remove_chapter "$PWD/$2"; shift 1 ;;
+			-m|--move-practice) move_practice "$PWD/$2" "$3" "$4"; shift 3 ;;
+			-M|--move-chapter) move_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
+			-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
+			*) usage ;;
+		esac
+		shift
+	done
+fi
