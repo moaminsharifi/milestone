@@ -212,7 +212,7 @@ show_practices() {
 		printf "%6s\t" $practice_number;
 		echo -e "$bash_seq$practice_title$DEFAULT";
 
-	done <<< $(cat $1) | column;
+	done <<< $(cat $1) | column -c $(tput cols)
 	echo;
 }
 
@@ -247,7 +247,7 @@ write_daily_note() {
 show_daily_note() {
 	if [ -f $location/daily_note ]; then
 		echo -e $LIGHT_CYAN"Daily Notes"$DEFAULT; echo;
-		nl $location/daily_note | column
+		nl $location/daily_note | column -c $(tput cols)
 		echo
 	fi
 }
@@ -392,8 +392,9 @@ mark_done() {
 	query_practice "$1";
 	MIN_NUMBER=1;
 	MAX_NUMBER=$(cat $location/$cycle_file | cut -d'	' -f1 | sed 's/^--//' | sort -n | tail -n1 | xargs)
-	record=$(grep -E "^-?-?\ *.*[^0-9]$PRACTICE_NUMBER\	.*$" $(echo $ring_list | tr ' ' '\n' | sed s,^,$location\/, | xargs));
-	record_file=$(echo $record | cut -d':' -f1);
+	local tempfile="$(echo "$ring_list" | tr ' ' '\n' | sed s,^,$location\/, | xargs)"
+	record="$(grep -E "^-?-?\ *.*[^0-9]$PRACTICE_NUMBER[^0-9]" "$tempfile")"
+	record_file="$(echo "$record" | cut -d':' -f1)";
 	if test "$(echo $record | cut -d':' -f2 | cut -d' ' -f1)" == "--"; then already_done=true; else already_done=false; fi
 	practice_title=$(echo $record | cut -d':' -f2 | sed 's/^\-\-\ //' | xargs | cut -d' ' -f2- | sed 's/\ *(.*)//');
 	practice_info=$(grep -B1 "$practice_title" $source_file | head -n1 | grep '#[^a-zA-Z+#]' | sed 's/^#[\ !?0-9]\ *//');
@@ -402,13 +403,13 @@ mark_done() {
 	old_progress=$practice_progress
 	if $MARK_DONE_WITH_PROGRESS; then
 		echo -e $BLUE"current progress: $practice_unit $old_progress"$DEFAULT
-		echo -ne $BLUE"next step: "$DEFAULT
+		echo -ne $BLUE"set progress: "$DEFAULT
 		while true; do
 			read PROGRESS_STEP < /dev/tty
 			if [ $(echo "$PROGRESS_STEP" | grep -oE "^[+]?[0-9]*$" | wc -l) -eq 1 ]; then
 				break
 			else
-				echo "invalid step $PROGRESS_STEP"
+				echo "invalid progress $PROGRESS_STEP"
 			fi
 		done
 
@@ -440,9 +441,9 @@ mark_done() {
 			fi
 
 			if $PREFERENCE_OPTION; then echo -e " on $CYAN$PRACTICE_DATE$DEFAULT"; fi
-			sed -i -r s,^.*[^0-9]$PRACTICE_NUMBER[^0-9]\(.*\)$,"$(printf "\-\-%4s" $PRACTICE_NUMBER)"\\\t\\\1, /tmp/$practice_file;
-			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $location/$cycle_file;
-			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, $record_file;
+			sed -i -r s,^.*[^0-9]$PRACTICE_NUMBER[^0-9]\(.*\)$,"$(printf "\-\-%4s" "$PRACTICE_NUMBER")"\\\t\\\1, "/tmp/$practice_file";
+			sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, "$location/$cycle_file";
+			#sed -i -r s,^\ \ \(\ *$PRACTICE_NUMBER\)[^0-9]\([^#]\),--\\\1\	\\\2, "$record_file";
 
 			if $INCREMENT_PROGRESS; then
 				if test -n "$practice_info"; then
