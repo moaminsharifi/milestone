@@ -69,22 +69,27 @@ function index_page {
 			if [ "$upper_entry" = "$entry" ]
 			then
 				previous_bottom="$(grep -n -B1 "${upper_entry}" "${upper_hierarchy}/.index")"
-				if [ "$(echo "$previous_bottom" | wc -l)" -gt 1 ]
+				if [ -z "$previous_bottom" ] && [ "${previous_index##*.}" -ne 0 ]
 				then
-					delimiter="-"
+					previous_index="${previous_index}.${zero_padding}0"
 				else
-					delimiter=":"
+					if [ "$(echo "$previous_bottom" | wc -l)" -gt 1 ]
+					then
+						delimiter="-"
+					else
+						delimiter=":"
+					fi
+					previous_bottom="${previous_bottom%%$'\n'*}"
+					previous_bottom="${previous_bottom%% *}"
+					if [ -n "$previous_index" ]
+					then
+						previous_index="${previous_index}.${previous_bottom%%$delimiter*}"
+					else
+						previous_index="${previous_bottom%%$delimiter*}"
+					fi
+					previous_bottom="${previous_bottom#*$delimiter}"
+					upper_hierarchy="$upper_hierarchy/$previous_bottom"
 				fi
-				previous_bottom="${previous_bottom%%$'\n'*}"
-				previous_bottom="${previous_bottom%% *}"
-				if [ -n "$previous_index" ]
-				then
-					previous_index="${previous_index}.${previous_bottom%%$delimiter*}"
-				else
-					previous_index="${previous_bottom%%$delimiter*}"
-				fi
-				previous_bottom="${previous_bottom#*$delimiter}"
-				upper_hierarchy="$upper_hierarchy/$previous_bottom"
 
 			# there is an entry above current entry in the same depth
 			# therefore, both upper and current hierarchies should lead the
@@ -94,7 +99,13 @@ function index_page {
 				upper_hierarchy="${hierarchy%/*}/$upper_entry"
 				if [ -n "$previous_index" ]
 				then
-					previous_index="${index}${local_index%%:*}"
+					# zero padding for one digit
+					if [ ${#local_index} -eq 1 ]
+					then
+						previous_index="${index}${zero_padding}${local_index}"
+					else
+						previous_index="${index}${local_index}"
+					fi
 				else
 					previous_index="${local_index%%:*}"
 				fi
@@ -130,22 +141,27 @@ function index_page {
 			if [ "$lower_entry" = "$entry" ]
 			then
 				previous_top="$(grep -n -A1 "${lower_entry}" "${lower_hierarchy}/.index")"
-				if [ "$(echo "$previous_top" | wc -l)" -gt 1 ]
+				if [ -z "$previous_top" ] && [ "${next_index##*.}" -ne 0 ]
 				then
-					delimiter=":"
+					next_index="${next_index}.${zero_padding}0"
 				else
-					delimiter=":"
+					if [ "$(echo "$previous_top" | wc -l)" -gt 1 ]
+					then
+						delimiter=":"
+					else
+						delimiter=":"
+					fi
+					previous_top="${previous_top%%$'\n'*}"
+					if [ -n "$next_index" ]
+					then
+						next_index="${next_index}.${previous_top%%$delimiter*}"
+					else
+						next_index="${previous_top%%$delimiter*}"
+					fi
+					previous_top="${previous_top%% *}"
+					previous_top="${previous_top#*$delimiter}"
+					lower_hierarchy="$lower_hierarchy/$previous_top"
 				fi
-				previous_top="${previous_top%%$'\n'*}"
-				if [ -n "$next_index" ]
-				then
-					next_index="${next_index}.${previous_top%%$delimiter*}"
-				else
-					next_index="${previous_top%%$delimiter*}"
-				fi
-				previous_top="${previous_top%% *}"
-				previous_top="${previous_top#*$delimiter}"
-				lower_hierarchy="$lower_hierarchy/$previous_top"
 
 			# there is an entry above current entry in the same depth
 			# therefore, both upper and current hierarchies should lead the
@@ -155,7 +171,13 @@ function index_page {
 				lower_hierarchy="${hierarchy%/*}/$lower_entry"
 				if [ -n "$next_index" ]
 				then
-					next_index="${index}${local_index}"
+					# zero padding for one digit
+					if [ ${#local_index} -eq 1 ]
+					then
+						next_index="${index}${zero_padding}${local_index}"
+					else
+						next_index="${index}${local_index}"
+					fi
 				else
 					next_index="${local_index}"
 				fi
