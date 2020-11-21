@@ -46,7 +46,6 @@ function index_page {
 			continue
 		fi
 
-		set -x
 		# always validate path step by step
 		if [ -e "$upper_hierarchy" ]
 		then
@@ -95,7 +94,7 @@ function index_page {
 				upper_hierarchy="${hierarchy%/*}/$upper_entry"
 				if [ -n "$previous_index" ]
 				then
-					previous_index="${previous_index}.${local_index%%:*}"
+					previous_index="${index}${local_index%%:*}"
 				else
 					previous_index="${local_index%%:*}"
 				fi
@@ -107,9 +106,7 @@ function index_page {
 			tput sgr0
 			return 1
 		fi
-		set +x
 
-		set -x
 		# always validate path step by step
 		if [ -e "$lower_hierarchy" ]
 		then
@@ -158,7 +155,7 @@ function index_page {
 				lower_hierarchy="${hierarchy%/*}/$lower_entry"
 				if [ -n "$next_index" ]
 				then
-					next_index="${next_index}.${local_index}"
+					next_index="${index}${local_index}"
 				else
 					next_index="${local_index}"
 				fi
@@ -170,7 +167,6 @@ function index_page {
 			tput sgr0
 			return 1
 		fi
-		set +x
 
 		###### index 
 		if [ -d "$hierarchy" ]
@@ -222,9 +218,9 @@ function index_page {
 
 		((depth++))
 	done
-	previous_index="${previous_index%.}"
-	index="${index%.}"
-	next_index="${next_index%.}"
+	previous_index="${previous_index%.}."
+	index="${index%.}."
+	next_index="${next_index%.}."
 
 	echo "upper hierarchy:$upper_hierarchy"
 	echo "hierarchy:$hierarchy"
