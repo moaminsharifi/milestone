@@ -111,11 +111,14 @@ function usage {
 	echo "  -J, --join_chapter <path/to/directory> [#position]"
 	echo
 	echo "  -r, --remove_practice <path/to/file>"
+	echo "  -d, --delete_practice <path/to/file>"
 	echo "  -R, --remove_chapter <path/to/directory>"
+	echo "  -D, --delete_chapter <path/to/directory>"
 	echo
 	echo "  -m, --move_practice <source> <destination> [#position]"
 	echo "  -M, --move_chapter <source> <destination> [#position]"
 	echo
+	echo "  -f, --force_compile"
 	exit 0
 }
 
@@ -993,12 +996,44 @@ function join_chapter {
 	local location="${1%/}"
 }
 
+# requires path to page
 function remove_practice {
+	local page="${1%.*}"
 	local location="${1%/}"
+	location="${location%/*}"
+
+	if [ -f "$1" ]
+	then
+		rm "$page."*
+		page="${page##*/}"
+		sed -i "/${page}/d" "${location}/.index"
+		echo "practice removed: ${1/$PWD\//}"
+	else
+		tput bold
+		echo "practice page does not exist: ${1/$PWD\//}" >&2
+		tput sgr0
+		return 1
+	fi
 }
 
+# requires path to directory
 function remove_chapter {
 	local location="${1%/}"
+	location="${location%/*}"
+	local chapter="${1%/}"
+	chapter="${chapter##*/}"
+
+	if [ -d "$1" ]
+	then
+		rm -r "$1"
+		sed -i "/$chapter/d" "$location/.index"
+		echo "chapter removed: ${1/$PWD\//}"
+	else
+		tput bold
+		echo "chapter does not exist: ${1/$PWD\//}" >&2
+		tput sgr0
+		return 1
+	fi
 }
 
 function move_practice {
@@ -1037,8 +1072,8 @@ else
 			-A|--add-chapter) add_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
 			-j|--join-practice) join_practice "$PWD/$2" "$3"; shift 2 ;;
 			-J|--join-chapter) join_chapter "$PWD/$2" "$3"; shift 2 ;;
-			-r|--remove-practice) remove_practice "$PWD/$2"; shift 1 ;;
-			-R|--remoe-chapter) remove_chapter "$PWD/$2"; shift 1 ;;
+			-r|-d|--remove-practice) remove_practice "$PWD/$2"; generate_manuals; shift 1 ;;
+			-R|-D|--remoe-chapter) remove_chapter "$PWD/$2"; generate_manuals; shift 1 ;;
 			-m|--move-practice) move_practice "$PWD/$2" "$3" "$4"; shift 3 ;;
 			-M|--move-chapter) move_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
 			-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
