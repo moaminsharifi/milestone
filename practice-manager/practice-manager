@@ -712,7 +712,7 @@ function generate_output_section {
 	else
 		if [ -f "$input" ]
 		then
-			"$COMPILER" "$binary" < "$intput" > "$output"
+			"$COMPILER" "$binary" < "$input" > "$output"
 		else
 			"$COMPILER" "$binary" > "$output"
 		fi
