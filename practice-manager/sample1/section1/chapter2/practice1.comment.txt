@@ -1,0 +1,1 @@
+This is an example of Python programming language which prints a number.

@@ -1,0 +1,2 @@
+This is another example of C programming language which only prints out a
+string.
