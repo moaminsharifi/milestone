@@ -1064,6 +1064,10 @@ function add_chapter {
 		((position++))
 		sed -i "${position}i ${chapter_name}" "${location}/.index"
 	else
+		if ! [ -f "${location}/.index" ] || [ "$(wc -l < "${location}/.index")" -eq 0 ]
+		then
+			echo "README.md" >> "${location}/.index"
+		fi
 		echo "$chapter_name" >> "${location}/.index"
 	fi
 
@@ -1175,8 +1179,8 @@ else
 			-A|--add-chapter) add_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
 			-j|--join-practice) join_practice "$PWD/$2" "$3"; shift 2 ;;
 			-J|--join-chapter) join_chapter "$PWD/$2" "$3"; shift 2 ;;
-			-r|-d|--remove-practice) remove_practice "$PWD/$2"; generate_manuals; shift 1 ;;
-			-R|-D|--remoe-chapter) remove_chapter "$PWD/$2"; generate_manuals; shift 1 ;;
+			-r|-d|--remove-practice) remove_practice "$PWD/$2"; shift 1 ;;
+			-R|-D|--remoe-chapter) remove_chapter "$PWD/$2"; shift 1 ;;
 			-m|--move-practice) move_practice "$PWD/$2" "$3" "$4"; shift 3 ;;
 			-M|--move-chapter) move_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
 			-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
