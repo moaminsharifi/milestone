@@ -51,6 +51,7 @@ function analyze {
 	echo
 }
 
+#1
 parse_response "$(./index.sh ./sample/section1/chapter1/practice1.c)"
 validate_response "./sample/section1/chapter1/practice1.c" \
 	"./sample/section1/chapter1/practice1.c" \
@@ -59,6 +60,7 @@ validate_response "./sample/section1/chapter1/practice1.c" \
 	"1.1.1.1." \
 	"1.1.2.1."
 
+#2
 parse_response "$(./index.sh ./sample/section1/chapter2/practice1.c)"
 validate_response "./sample/section1/chapter1/practice1.c" \
 	"./sample/section1/chapter2/practice1.c" \
@@ -67,6 +69,7 @@ validate_response "./sample/section1/chapter1/practice1.c" \
 	"1.1.2.1." \
 	"1.1.2.2."
 
+#3
 parse_response "$(./index.sh ./sample/section1/chapter2/sample.c)"
 validate_response "./sample/section1/chapter2/practice2.c" \
 	"./sample/section1/chapter2/sample.c" \
@@ -75,19 +78,21 @@ validate_response "./sample/section1/chapter2/practice2.c" \
 	"1.1.2.3." \
 	"1.1.2.4."
 
+#4
 parse_response "$(./index.sh ./sample/section1/chapter2/practice4.c)"
 validate_response "./sample/section1/chapter2/sample.c" \
 	"./sample/section1/chapter2/practice4.c" \
-	"./sample/section1/chapter3/practice1.py" \
+	"./sample/section1/chapter3" \
 	"1.1.2.3." \
 	"1.1.2.4." \
-	"1.1.3.1."
+	"1.1.3.0."
 
+#5
 parse_response "$(./index.sh ./sample/section2/chapter1/practice1.c)"
-validate_response "./sample/section1/chapter3/practice1.c" \
+validate_response "./sample/section1/chapter3" \
 	"./sample/section2/chapter1/practice1.c" \
 	"./sample/section1/chapter3/practice2.c" \
-	"1.1.3.1." \
+	"1.3.0." \
 	"1.2.1.1." \
 	"1.2.1.2."
 

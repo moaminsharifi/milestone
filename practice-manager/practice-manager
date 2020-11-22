@@ -501,42 +501,6 @@ function index_page {
 	index="${index%.}"
 }
 
-# requires path to page
-function find_neighbor_index {
-	local page="${1##*/}"
-	local old_index="$index"
-	local match
-
-	page="${page##*/}"
-	next_index=
-	previous_index=
-	top_index=
-
-	match="$(grep -A1 "$page" "${1%/*}/.index")"
-	match="${match##*$'\n'}"
-	match="${match%% *}"
-	if [ "$match" = "$page" ]
-	then
-		find_neighbor_index "${1%/*}"
-	else
-		index_page "$match"
-		next_index="$index"
-	fi
-
-	match="$(grep -B1 "$page" "${1%/*}/.index")"
-	match="${match%%$'\n'*}"
-	match="${match%% *}"
-	if [ "$match" = "$page" ]
-	then
-		find_neighbor_index "${1%/*}"
-	else
-		index_page "$match"
-		previous_index="$index"
-	fi
-
-	index="$old_index"
-}
-
 function generate_index_section {
 	local tag="<h1>"
 
@@ -901,6 +865,8 @@ function add_practice {
 	# index practice in corresponding location
 	if [ -n "$position" ] && [ -f "${location}/.index" ]
 	then
+		# only readme files are in position 1, shift all indexed up
+		((position++))
 		sed -i "${position}i ${practice_name}" "${location}/.index"
 	else
 		echo "$practice_name" >> "${location}/.index"
@@ -960,6 +926,8 @@ function add_chapter {
 	# index chapter in corresponding location
 	if [ -n "$position" ] && [ -f "${location}/.index" ]
 	then
+		# only readme files are in index 0, shift all indexes up
+		((position++))
 		sed -i "${position}i ${chapter_name}" "${location}/.index"
 	else
 		echo "$chapter_name" >> "${location}/.index"
@@ -967,6 +935,7 @@ function add_chapter {
 
 	mkdir "${location}/${chapter_name}"
 	echo "# $chapter_name" > "${location}/${chapter_name}/README.md"
+	echo "README.md" > "${location}/${chapter_name}/.index"
 
 	# create additional extensions
 	generate_configuration "${location}/${chapter_name}"

@@ -1,5 +1,36 @@
 #!/usr/bin/env bash
 
+# requires path to page
+# optional head/tail for direction of growth
+function deepest_path {
+	local hierarchy="${1%/}"
+	local direction="${2:-head}"
+	local bottom_entry=
+	
+	local upper_entry=
+	local delimiter=
+
+	deepest_hierarchy=
+
+	while [ 1 = 1 ]
+	do
+		if [ -d "$hierarchy" ] && [ -f "${hierarchy}/.index" ]
+		then
+			bottom_entry="$("$direction" -n1 "${hierarchy}/.index")"
+			bottom_entry="${bottom_entry%% *}"
+			if [ -n "$bottom_entry" ]
+			then
+				hierarchy="${hierarchy}/${bottom_entry}"
+			else
+				break
+			fi
+		else
+			break
+		fi
+	done
+	deepest_hierarchy="$hierarchy"
+}
+
 function index_page {
 	local page="${1%.*}"
 	page="${page##*/}"
@@ -46,6 +77,7 @@ function index_page {
 			continue
 		fi
 
+	set -x
 		# always validate path step by step
 		if [ -e "$upper_hierarchy" ]
 		then
@@ -117,6 +149,7 @@ function index_page {
 			tput sgr0
 			return 1
 		fi
+	set +x
 
 		# always validate path step by step
 		if [ -e "$lower_hierarchy" ]
@@ -247,9 +280,9 @@ function index_page {
 	echo "upper hierarchy:$upper_hierarchy"
 	echo "hierarchy:$hierarchy"
 	echo "lower hierarchy:$lower_hierarchy"
+	echo "previous index:$previous_index"
+	echo "index:$index"
+	echo "next index:$next_index"
 }
 
 index_page "$1"
-echo "previous index:$previous_index"
-echo "index:$index"
-echo "next index:$next_index"
