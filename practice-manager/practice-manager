@@ -411,7 +411,6 @@ function compile_source {
 		if [ "$COMPILABLE" = "true" ]
 		then
 			execution_command="$COMPILER $COMPILER_OPTIONS $object $1"
-			echo "compile: $execution_command"
 			if ! $execution_command
 			then
 				tput bold
@@ -445,7 +444,6 @@ function compile_source {
 	then
 		if [ "$COMPILABLE" = "true" ] && [ -n "$LINKER" ]
 		then
-			echo "link: $execution_command"
 			if ! $execution_command
 			then
 				tput bold
