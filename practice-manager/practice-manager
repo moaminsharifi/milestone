@@ -797,12 +797,16 @@ function generate_toc_section {
 	if [ -n "$page_index" ]
 	then
 		generate_html_link "$1" "${page_index}.html" "previous page"
+	else
+		generate_html_link "$1" "index.html" "top page"
 	fi
 
 	nearest_path "$1" down
 	if [ -n "$page_index" ]
 	then
 		generate_html_link "$1" "${page_index}.html" "next page"
+	else
+		generate_html_link "$1" "index.html" "top page"
 	fi
 
 	generate_html_div "$1" end
