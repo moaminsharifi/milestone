@@ -418,22 +418,18 @@ function compile_source {
 				tput sgr0
 				return 1
 			fi
+			generate_execution_mode "$1" compile "$execution_command"
 		else
-			execution_command="$COMPILER $COMPILER_OPTIONS $object"
 			if [ -f "$binary" ]
 			then
 				unlink "$binary"
 			fi
 			ln -s "$PWD/$1" "$binary"
 		fi
-		generate_execution_mode "$1" compile "$execution_command"
 	else
 		if [ "$COMPILABLE" = "true" ]
 		then
 			execution_command="$COMPILER $COMPILER_OPTIONS ${object##*/} ${1##*/}"
-			generate_execution_mode "$1" compile "$execution_command"
-		else
-			execution_command="$COMPILER $COMPILER_OPTIONS ${1##*/}"
 			generate_execution_mode "$1" compile "$execution_command"
 		fi
 	fi
@@ -460,15 +456,18 @@ function compile_source {
 		fi
 	fi
 
-	binary="${binary##*/}"
-	object="${object##*/}"
-	for header in $headers
-	do
-		includes+="$header "
-	done
+	if [ "$COMPILABLE" = "true" ]
+	then
+		binary="${binary##*/}"
+		object="${object##*/}"
+		for header in $headers
+		do
+			includes+="$header "
+		done
 
-	execution_command="$LINKER $LINKER_OPTIONS $binary $object $includes"
-	generate_execution_mode "$1" link "$execution_command"
+		execution_command="$LINKER $LINKER_OPTIONS $binary $object $includes"
+		generate_execution_mode "$1" link "$execution_command"
+	fi
 }
 
 # requires path to page
@@ -716,7 +715,7 @@ function generate_output_section {
 		else
 			"$COMPILER" "$binary" > "$output"
 		fi
-		generate_execution_mode "$1" run "$COMPILER ${binary##*/}"
+		generate_execution_mode "$1" run "$COMPILER ${1##*/}"
 	fi
 	echo >> "$output"
 
