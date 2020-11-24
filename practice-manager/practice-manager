@@ -205,9 +205,10 @@ EOF
 	cat << EOF >> "./html-files/${index}.html"
    .quick-access {
     width: 70%; 
+	padding-bottom: 50px;
    }
 
-   .quick-access-child {
+   .quick-access-row {
 	text-align: center;
     float: left;
     position: relative;
@@ -825,43 +826,43 @@ function generate_quick_access_section {
 	previous_index="$page_index"
 	if [ -n "$previous_index" ]
 	then
-		generate_html_div "$1" begin quick-access-child
+		generate_html_div "$1" begin quick-access-row
 		generate_html_link "$1" "${previous_index}.html" "previous page"
-		generate_html_div "$1" end quick-access-child
+		generate_html_div "$1" end quick-access-row
 	elif [ "$1" = "./README.md" ]
 	then
-		generate_html_div "$1" begin quick-access-child
+		generate_html_div "$1" begin quick-access-row
 		generate_html_link "$1" "index.html" "top page"
-		generate_html_div "$1" end quick-access-child
+		generate_html_div "$1" end quick-access-row
 	else
-		generate_html_div "$1" begin quick-access-child
+		generate_html_div "$1" begin quick-access-row
 		generate_html_link "$1" "0.html" "previous page"
-		generate_html_div "$1" end quick-access-child
+		generate_html_div "$1" end quick-access-row
 	fi
 
 	nearest_path "$1" down
 	next_index="$page_index"
 	if [ -n "$next_index" ]
 	then
-		generate_html_div "$1" begin quick-access-child
+		generate_html_div "$1" begin quick-access-row
 		generate_html_link "$1" "${next_index}.html" "next page"
-		generate_html_div "$1" end quick-access-child
+		generate_html_div "$1" end quick-access-row
 	elif [ "$1" = "./README.md" ]
 	then
-		generate_html_div "$1" begin quick-access-child
+		generate_html_div "$1" begin quick-access-row
 		generate_html_link "$1" "1.0.html" "next page"
-		generate_html_div "$1" end quick-access-child
+		generate_html_div "$1" end quick-access-row
 	else
-		generate_html_div "$1" begin quick-access-child
+		generate_html_div "$1" begin quick-access-row
 		generate_html_link "$1" "index.html" "top page"
-		generate_html_div "$1" end quick-access-child
+		generate_html_div "$1" end quick-access-row
 	fi
 
 	if [ -n "$previous_index" ] && [ -n "$next_index" ]
 	then
-		generate_html_div "$1" begin quick-access-child
+		generate_html_div "$1" begin quick-access-row
 		generate_html_link "$1" "index.html" "top page"
-		generate_html_div "$1" end quick-access-child
+		generate_html_div "$1" end quick-access-row
 	fi
 
 	generate_html_div "$1" end
