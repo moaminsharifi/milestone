@@ -814,7 +814,7 @@ function generate_comment_section {
 		local line
 		while read -r line
 		do
-			line="$(echo "$line" | sed 's/\.$/\.<br \/>/')"
+			line="$(echo "$line" | sed 's/\([[:punct:]]\)$/\1<br \/>/')"
 			echo -e "   $line" >> "./html-files/${index}.html"
 		done < "$comment"
 		IFS="$OLD_IFS"
