@@ -223,7 +223,7 @@ EOF
 
 	cat << EOF >> "./html-files/${index}.html"
 	.comment-style {
-	width: 70%;
+	width: 100%;
 	}
 EOF
 
@@ -814,7 +814,7 @@ function generate_comment_section {
 		local line
 		while read -r line
 		do
-			line="$(echo "$line" | sed 's/$/<br \/>/')"
+			line="$(echo "$line" | sed 's/\.$/\.<br \/>/')"
 			echo -e "   $line" >> "./html-files/${index}.html"
 		done < "$comment"
 		IFS="$OLD_IFS"
@@ -839,14 +839,14 @@ function generate_quick_access_section {
 		generate_html_div "$1" begin quick-access-row
 		generate_html_link "$1" "${previous_index}.html" "previous page"
 		generate_html_div "$1" end quick-access-row
-	elif [ "$1" = "./README.md" ]
-	then
-		generate_html_div "$1" begin quick-access-row
-		generate_html_link "$1" "index.html" "top page"
-		generate_html_div "$1" end quick-access-row
+#	elif [ "$1" = "./README.md" ]
+#	then
+#		generate_html_div "$1" begin quick-access-row
+#		generate_html_link "$1" "index.html" "top page"
+#		generate_html_div "$1" end quick-access-row
 	else
 		generate_html_div "$1" begin quick-access-row
-		generate_html_link "$1" "0.html" "previous page"
+		generate_html_link "$1" "index.html" "top page"
 		generate_html_div "$1" end quick-access-row
 	fi
 
