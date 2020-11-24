@@ -202,6 +202,20 @@ function generate_style {
    }
 EOF
 
+	cat << EOF >> "./html-files/${index}.html"
+   .quick-access {
+    width: 70%; 
+   }
+
+   .quick-access-child {
+	text-align: center;
+    float: left;
+    position: relative;
+    width: 26.67%; 
+    margin-left: 0% ;
+   }
+EOF
+
 	echo "  </style>" >> "./html-files/${index}.html"
 }
 
@@ -281,6 +295,11 @@ EOF
   </div>
 EOF
 	fi
+}
+
+# requires path to page
+function generate_html_break {
+	echo "    <br />" >> "./html-files/${index}.html"
 }
 
 # requires path to page
@@ -655,6 +674,13 @@ function generate_page_name {
 
 # requires path to page
 function generate_source_section {
+	update_configuration "$1"
+
+	if [ "$SOURCE" != "true" ]
+	then
+		return 1
+	fi
+
 	generate_html_header "$1" 2 "Source"
 	while [ $# -gt 0 ]
 	do
@@ -786,30 +812,103 @@ function generate_comment_section {
 }
 
 # requires absolute path to page
-function generate_toc_section {
+function generate_quick_access_section {
 	local page="${1%.*}"
 	page="${page##*/}"
+	local next_index=
+	local previous_index=
 
 	generate_html_header "$1" 2 "Quick Access"
-	generate_html_div "$1" begin
+	generate_html_div "$1" begin quick-access
 
 	nearest_path "$1" up
-	if [ -n "$page_index" ]
+	previous_index="$page_index"
+	if [ -n "$previous_index" ]
 	then
-		generate_html_link "$1" "${page_index}.html" "previous page"
-	else
+		generate_html_div "$1" begin quick-access-child
+		generate_html_link "$1" "${previous_index}.html" "previous page"
+		generate_html_div "$1" end quick-access-child
+	elif [ "$1" = "./README.md" ]
+	then
+		generate_html_div "$1" begin quick-access-child
 		generate_html_link "$1" "index.html" "top page"
+		generate_html_div "$1" end quick-access-child
+	else
+		generate_html_div "$1" begin quick-access-child
+		generate_html_link "$1" "0.html" "previous page"
+		generate_html_div "$1" end quick-access-child
 	fi
 
 	nearest_path "$1" down
-	if [ -n "$page_index" ]
+	next_index="$page_index"
+	if [ -n "$next_index" ]
 	then
-		generate_html_link "$1" "${page_index}.html" "next page"
+		generate_html_div "$1" begin quick-access-child
+		generate_html_link "$1" "${next_index}.html" "next page"
+		generate_html_div "$1" end quick-access-child
+	elif [ "$1" = "./README.md" ]
+	then
+		generate_html_div "$1" begin quick-access-child
+		generate_html_link "$1" "1.0.html" "next page"
+		generate_html_div "$1" end quick-access-child
 	else
+		generate_html_div "$1" begin quick-access-child
 		generate_html_link "$1" "index.html" "top page"
+		generate_html_div "$1" end quick-access-child
+	fi
+
+	if [ -n "$previous_index" ] && [ -n "$next_index" ]
+	then
+		generate_html_div "$1" begin quick-access-child
+		generate_html_link "$1" "index.html" "top page"
+		generate_html_div "$1" end quick-access-child
 	fi
 
 	generate_html_div "$1" end
+}
+
+function generate_table_of_content {
+	local hierarchy="${1%/*}"
+	local entry=
+	local indentation=
+	local local_index=
+	local title=
+
+	while read -r entry
+	do
+		if [ -d "${hierarchy}/${entry}" ]
+		then
+			if [ -f "${hierarchy}/${entry%/}/.index" ]
+			then
+				generate_table_of_content "${hierarchy}/${entry%/}/.index"
+			else
+				tput bold
+				echo "broken hierarchy in ${hierarchy}/${entry%/}/.index"
+				tput sgr0
+			fi
+		elif ! [ -f "${hierarchy}/${entry}" ]
+		then
+			tput bold
+			echo "missing entry in table of content: ${hierarchy}/${entry}"
+			tput sgr0
+			return 1
+		elif ! [ -f "${hierarchy}/${entry%.*}.title.txt" ]
+		then
+			tput bold
+			echo "missing entry title in table of content: ${hierarchy}/{$entry}"
+			tput sgr0
+			return 2
+		else
+			title="$(cat "${hierarchy}/${entry%.*}.title.txt")"
+			index_page "${hierarchy}/${entry}"
+			local_index="${page_index//[0-9]/}"
+			local_index="${#local_index}"
+			indentation="$(printf "%0.s " $(seq 1 "$local_index"))"
+			title="${indentation}${page_index}. ${title}"
+			generate_html_link "$1" "${page_index}.html" "$title"
+			generate_html_break "$1"
+		fi
+	done < "${hierarchy}/.index"
 }
 
 function generate_index_page {
@@ -820,7 +919,10 @@ function generate_index_page {
 	generate_html_head "$page" begin Practices
 	generate_html_head "$page" end
 	generate_html_body "$page" begin
-	generate_html_link "$page" "1.0.html" "first page"
+	generate_html_header "$1" 2 "Table of Content"
+	generate_html_div "$1" begin table-of-content
+	generate_table_of_content "./.index"
+	generate_html_div "$1" end
 	generate_html_body "$page" end
 	generate_html_section "$page" end
 }
@@ -842,7 +944,7 @@ function generate_page {
 	generate_comment_section "$1"
 	generate_source_section $@
 	generate_output_section $@
-	generate_toc_section "$1"
+	generate_quick_access_section "$1"
 	generate_html_body "$1" end
 	generate_html_section "$1" end
 	index=
@@ -860,7 +962,7 @@ function generate_chapter {
 	generate_index_section "$1/README.md"
 	generate_header_section "$1/README.md"
 	generate_comment_section "$1/README.md"
-	generate_toc_section "$1/README.md"
+	generate_quick_access_section "$1/README.md"
 	generate_html_body "$1/README.md" end
 	generate_html_section "$1/README.md" end
 	index=
@@ -902,15 +1004,11 @@ function expand_list {
 				fi
 			done
 			generate_page $group
-		elif [ -f "$directory/$line" ] && [ "$line" = "README.md" ]
-		then
-			continue
 		elif [ -f "$directory/$line" ]
 		then
 			generate_page "$directory/$line"
 		elif [ -d "$directory/$line" ]
 		then
-			generate_chapter "$directory/$line"
 			expand_list "$directory/$line/.index"
 		else
 			tput bold
@@ -1069,13 +1167,15 @@ function add_chapter {
 	else
 		if ! [ -f "${location}/.index" ] || [ "$(wc -l < "${location}/.index")" -eq 0 ]
 		then
-			echo "README.md" >> "${location}/.index"
+			echo "README.md" > "${location}/.index"
 		fi
 		echo "$chapter_name" >> "${location}/.index"
 	fi
 
 	mkdir "${location}/${chapter_name}"
 	echo "# $chapter_name" > "${location}/${chapter_name}/README.md"
+	echo "This file is automatically created by Milestone Practice Manager" >>\
+	   	"${location}/${chapter_name}/README.md"
 	echo "README.md" > "${location}/${chapter_name}/.index"
 
 	# create additional extensions
@@ -1087,6 +1187,8 @@ function add_chapter {
 	do
 		touch "${location}/${chapter_name}/README.${extension}"
 	done
+	echo "EXECUTABLE=false" > "${location}/${chapter_name}/README.config"
+	echo "SOURCE=false" > "${location}/${chapter_name}/README.config"
 
 	echo "files created:"
 	find "${location//$PWD/.}/${chapter_name}/" -type f | nl
