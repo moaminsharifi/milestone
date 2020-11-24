@@ -1122,9 +1122,6 @@ function add_practice {
 	# create practice file itself
 	touch "${location}/${practice_name}"
 
-	# create additional extensions
-	generate_configuration "${location}/${practice_name}"
-
 	update_configuration "${location}/${practice_name}"
 
 	practice_name="${practice_name%.*}"
