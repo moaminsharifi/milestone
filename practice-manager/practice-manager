@@ -107,19 +107,23 @@ function usage {
 	echo
 	echo "Options:"
 	echo
-	echo "  -a, --add_practice <path/to/directory> <page_name> [#position]"
-	echo "  -A, --add_chapter <path/to/directory> <chapter_name> [#position]"
+	echo "  -a, --add-practice <path/to/directory> <page_name> [#position]"
+	echo "  -A, --add-chapter <path/to/directory> <chapter_name> [#position]"
 	echo
-	echo "  -j, --join_practice <path/to/file> [#position]"
-	echo "  -J, --join_chapter <path/to/directory> [#position]"
+	echo "  -j, --join-practice <path/to/file> [#position]"
+	echo "  -J, --join-chapter <path/to/directory> [#position]"
 	echo
-	echo "  -r, --remove_practice <path/to/file>"
-	echo "  -d, --delete_practice <path/to/file>"
-	echo "  -R, --remove_chapter <path/to/directory>"
-	echo "  -D, --delete_chapter <path/to/directory>"
+	echo "  -d, --delete-practice <path/to/file>"
+	echo "  -D, --delete-chapter <path/to/directory>"
 	echo
-	echo "  -m, --move_practice <source> <destination> [#position]"
-	echo "  -M, --move_chapter <source> <destination> [#position]"
+	echo "  -r, --rename-practice <path/to/file> <new_name>"
+	echo "  -R, --rename-chapter <path/to/directory> <new_name>"
+	echo
+	echo "  -m, --move-practice <source> <destination> [#position]"
+	echo "  -M, --move-chapter <source> <destination> [#position]"
+	echo
+	echo "  -s, --swap-practice <source> <destination>"
+	echo "  -S, --swap-chapter <source> <destination>"
 	echo
 	echo "  -f, --force_compile"
 	exit 0
@@ -215,6 +219,12 @@ EOF
     width: 26.67%; 
     margin-left: 0% ;
    }
+EOF
+
+	cat << EOF >> "./html-files/${index}.html"
+	.comment-style {
+	width: 70%;
+	}
 EOF
 
 	echo "  </style>" >> "./html-files/${index}.html"
@@ -805,7 +815,8 @@ function generate_comment_section {
 		local line
 		while read -r line
 		do
-			echo -e "   ${line/.\n/.EOL<br />}" >> "./html-files/${index}.html"
+			line="$(echo "$line" | sed 's/$/<br \/>/')"
+			echo -e "   $line" >> "./html-files/${index}.html"
 		done < "$comment"
 		IFS="$OLD_IFS"
 		generate_html_div "$1" end
@@ -1189,7 +1200,7 @@ function add_chapter {
 		touch "${location}/${chapter_name}/README.${extension}"
 	done
 	echo "EXECUTABLE=false" > "${location}/${chapter_name}/README.config"
-	echo "SOURCE=false" > "${location}/${chapter_name}/README.config"
+	echo "SOURCE=false" >> "${location}/${chapter_name}/README.config"
 
 	echo "files created:"
 	find "${location//$PWD/.}/${chapter_name}/" -type f | nl
@@ -1199,11 +1210,11 @@ function add_chapter {
 # requires page name as second argument
 # optional page index as third argument
 function join_practice {
-	local location="${1%/}"
+	echo "not implemented yet"
 }
 
 function join_chapter {
-	local location="${1%/}"
+	echo "not implemented yet"
 }
 
 # requires path to page
@@ -1246,12 +1257,102 @@ function remove_chapter {
 	fi
 }
 
+function rename_practice {
+	echo "not implemented yet"
+}
+
+function rename_chapter {
+	echo "not implemented yet"
+}
+
 function move_practice {
-	local location="${1%/}"
+	echo "not implemented yet"
 }
 
 function move_chapter {
-	local location="${1%/}"
+	local source="${1%/}"
+	local destination="${2%/}"
+	local index="$3"
+	((index++)) # indexing starts from zero for readme files
+
+	if ! [ -d "$source" ] && [ -d "${destination%/*}" ]
+	then
+		tput bold
+		echo "source or destination does not exist!"
+		tput sgr0
+		return 1
+	fi
+
+	if [ -d "$destination" ]
+	then
+		if mv "$source" "$destination"
+		then
+			sed -i "/^${source##*/}$/d" "${source%/*}/.index"
+			if [ -n "$index" ]
+			then
+				sed -i "${index}i ${source##*/}" "${destination}/.index"
+			else
+				echo "${source##*/}" >> "${destination}/.index"
+			fi
+		else
+			tput bold
+			echo "failed to move!"
+			tput sgr0
+		fi
+	else
+		if mv "$source" "$destination"
+		then
+			sed -i "/^${source##*/}$/d" "${source%/*}/.index"
+			if [ -n "$index" ]
+			then
+				sed -i "${index}i ${destination##*/}" "${destination%/*}/.index"
+			else
+				echo "${destination##*/}" >> "${destination%/*}/.index"
+			fi
+		else
+			tput bold
+			echo "failed to move!"
+			tput sgr0
+		fi
+
+	fi
+}
+
+function swap_practice {
+	echo "not implemented yet"
+}
+
+function swap_chapter {
+	local source="${1%/}"
+	local destination="${2%/}"
+	local source_index=
+	local destination_index=
+	
+	if [ -d "$source" ] && [ -d "$destination" ]
+	then
+		source_index="$(grep -n "${source##*/}" "${source%/*}/.index")"
+		source_index="${source_index%%:*}"
+		((source_index--))
+		destination_index="$(grep -n "${destination##*/}" "${destination%/*}/.index")"
+		destination_index="${destination_index%%:*}"
+		((destination_index--))
+
+		if [ "${source%/*}" = "${destination%/*}" ]
+		then
+			sed -i "s/^${destination##*/}$/chapter_name_substitution/" "${destination%/*}/.index"
+			sed -i "s/^${source##*/}$/${destination##*/}/" "${source%/*}/.index"
+			sed -i "s/chapter_name_substitution/${source##*/}/" "${destination%/*}/.index"
+		else
+			move_chapter "$1" "./temporary_source_chapter"
+			move_chapter "$2" "./temporary_destination_chapter"
+			move_chapter "$PWD/temporary_source_chapter" "${destination%/*}" "$destination_index"
+			move_chapter "$PWD/temporary_destination_chapter" "${source%/*}" "$source_index"
+		fi
+	else
+		tput bold
+		echo "source or destination does not exist"
+		tput sgr0
+	fi
 }
 
 function touch_sources {
@@ -1285,10 +1386,14 @@ else
 			-A|--add-chapter) add_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
 			-j|--join-practice) join_practice "$PWD/$2" "$3"; shift 2 ;;
 			-J|--join-chapter) join_chapter "$PWD/$2" "$3"; shift 2 ;;
-			-r|-d|--remove-practice) remove_practice "$PWD/$2"; shift 1 ;;
-			-R|-D|--remoe-chapter) remove_chapter "$PWD/$2"; shift 1 ;;
-			-m|--move-practice) move_practice "$PWD/$2" "$3" "$4"; shift 3 ;;
-			-M|--move-chapter) move_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
+			-d|--delete-practice) remove_practice "$PWD/$2"; shift 1 ;;
+			-D|--delete-chapter) remove_chapter "$PWD/$2"; shift 1 ;;
+			-r|--rename-practice) rename_practice "$PWD/$2" "$3"; shift 2 ;;
+			-R|--rename-chapter) rename_chapter "$PWD/$2" "$3"; shift 2 ;;
+			-m|--move-practice) move_practice "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
+			-M|--move-chapter) move_chapter "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
+			-s|--swap-practice) swap_practice "$PWD/$2" "$PWD/$3"; shift 2 ;;
+			-S|--swap-chapter) swap_chapter "$PWD/$2" "$PWD/$3"; shift 2 ;;
 			-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
 			*) usage ;;
 		esac
