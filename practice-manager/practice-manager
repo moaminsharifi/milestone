@@ -415,7 +415,6 @@ function compile_source {
 
 	if [ "$COMPILABLE" = "true" ] && [ -z "$COMPILER" ]
 	then
-		echo "$COMPILABLE $COMPILER"
 		tput bold
 		echo "compiler not specified for: $1" >&2
 		tput sgr0
@@ -1176,6 +1175,9 @@ function add_chapter {
 	else
 		if ! [ -f "${location}/.index" ] || [ "$(wc -l < "${location}/.index")" -eq 0 ]
 		then
+			# create additional extensions
+			generate_configuration "${location}/${chapter_name}"
+
 			echo "README.md" > "${location}/.index"
 		fi
 		echo "$chapter_name" >> "${location}/.index"
@@ -1186,9 +1188,6 @@ function add_chapter {
 	echo "This file is automatically created by Milestone Practice Manager" >>\
 	   	"${location}/${chapter_name}/README.md"
 	echo "README.md" > "${location}/${chapter_name}/.index"
-
-	# create additional extensions
-	generate_configuration "${location}/${chapter_name}"
 
 	update_configuration "${location}/${chapter_name}/README.md"
 
