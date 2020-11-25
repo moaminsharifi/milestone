@@ -1161,6 +1161,11 @@ function generate_configuration {
 	elif [ -d "$1" ]
 	then
 		page="${1%/}/.config"
+	else
+		tput bold
+		echo "invalid location to create config file"
+		tput sgr0
+		return 1
 	fi
 
 	cat << EOF > "$page"
@@ -1281,22 +1286,28 @@ function add_chapter {
 		if ! [ -f "${location}/.index" ] || [ "$(wc -l < "${location}/.index")" -eq 0 ]
 		then
 			# create additional extensions
-			generate_configuration "${location}/${chapter_name}"
+			generate_configuration "${location}"
 
 			echo "README.md" > "${location}/.index"
+			echo -e "# Practice Repository\n" > "${location}/README.md"
+			echo "This file is automatically created by Milestone Practice Manager" >> "${location}/README.md"
+			echo "README.md" > "${location}/.index"
+			for extension in comment.txt title.txt
+			do
+				touch "${location}/README.${extension}"
+			done
+			echo "EXECUTABLE=false" > "${location}/README.config"
+			echo "SOURCE=false" >> "${location}/README.config"
 		fi
 		echo "$chapter_name" >> "${location}/.index"
 	fi
 
 	mkdir "${location}/${chapter_name}"
 	echo "# $chapter_name" > "${location}/${chapter_name}/README.md"
-	echo "This file is automatically created by Milestone Practice Manager" >>\
-	   	"${location}/${chapter_name}/README.md"
+	echo "This file is automatically created by Milestone Practice Manager" >> "${location}/${chapter_name}/README.md"
 	echo "README.md" > "${location}/${chapter_name}/.index"
 
-	update_configuration "${location}/${chapter_name}/README.md"
-
-	for extension in $ADDITIONAL_EXTENSIONS
+	for extension in comment.txt title.txt
 	do
 		touch "${location}/${chapter_name}/README.${extension}"
 	done
