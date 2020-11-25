@@ -357,18 +357,25 @@ function generate_html_text {
 
 # requires path to page
 # optional begin/end
+# optional css class
 # optional css style
 function generate_html_list {
 	local page="$1"
 	local side="${2:-begin}"
-	local style="$3"
+	local class="$3"
+	local style="$4"
 	local tag=
 
 	if [ "$side" = "begin" ]
 	then
-		if [ -n "$style" ]
+		if [ -n "$class" ]
 		then
-			tag="<ul class=\"${style}\">"
+			if [ -n "$style" ]
+			then
+				tag="<ul class=\"${class}\" style=\"${style}\">"
+			else
+				tag="<ul class=\"${class}\">"
+			fi
 		else
 			tag="<ul>"
 		fi
@@ -931,7 +938,7 @@ function generate_quick_access_section {
 	local previous_index=
 
 	generate_html_header "$1" 2 "Quick Access"
-	generate_html_list "$1" begin pager
+	generate_html_list "$1" begin pager "float: left;"
 
 	nearest_path "$1" up
 	previous_index="$page_index"
