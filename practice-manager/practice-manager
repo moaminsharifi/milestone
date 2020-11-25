@@ -193,46 +193,43 @@ function generate_html_header {
 
 # requires path to page
 # optional style names [multiple names allowed]
-function generate_style {
+function generate_html_style {
 	local page="${1%.*}"
 	page="${page##*/}"
 
 	echo "<style>" >> "./html-files/${index}.html"
 
-	# default style
 	cat << EOF >> "./html-files/${index}.html"
-   hr {
-     width:50%;
-     margin-left:0;
-     height:1px;
-     border-width:0;
-     color:gray;
-     background-color:gray;
-   }
+.dark-mode {
+  background-color: black;
+  color: #999;
+}
 EOF
 
-	cat << EOF >> "./html-files/${index}.html"
-   .quick-access {
-    width: 70%; 
-	padding-bottom: 50px;
-   }
+	echo "</style>" >> "./html-files/${index}.html"
+}
 
-   .quick-access-row {
-	text-align: center;
-    float: left;
-    position: relative;
-    width: 26.67%; 
-    margin-left: 0% ;
-   }
-EOF
+# requires path to page
+# optional style names [multiple names allowed]
+function generate_html_script {
+	local page="${1%.*}"
+	page="${page##*/}"
+
+	echo "<script>" >> "./html-files/${index}.html"
 
 	cat << EOF >> "./html-files/${index}.html"
-	.comment-style {
-	width: 100%;
-	}
+function darkmode() {
+	const hours = new Date().getHours()
+	const isDayTime = hours > 6 && hours < 15
+    if (!isDayTime) {
+   		var bodystyle = document.body;
+   		bodystyle.classList.toggle("dark-mode");
+    }
+}
+darkmode();
 EOF
 
-	echo "  </style>" >> "./html-files/${index}.html"
+	echo "</script>" >> "./html-files/${index}.html"
 }
 
 # requires path to page
@@ -1028,12 +1025,14 @@ function generate_index_page {
 
 	generate_html_section "$page" begin
 	generate_html_head "$page" begin Practices
+	generate_html_style "$1"
 	generate_html_head "$page" end
 	generate_html_body "$page" begin
 	generate_html_header "$1" 2 "Table of Content"
 	generate_html_div "$1" begin table-of-content
 	generate_table_of_content "./.index"
 	generate_html_div "$1" end
+	generate_html_script "$1"
 	generate_html_body "$page" end
 	generate_html_section "$page" end
 }
@@ -1047,10 +1046,10 @@ function generate_page {
 	index="$page_index"
 	generate_html_section "$1" begin
 	generate_html_head "$1" begin
+	generate_html_style "$1"
 	generate_html_head "$1" end
 	generate_html_body "$1" begin
 	generate_html_div "$1" begin container
-	#generate_index_section "$1"
 	generate_breadcrumb_section "$1"
 	generate_header_section "$1"
 	generate_comment_section "$1"
@@ -1058,6 +1057,7 @@ function generate_page {
 	generate_output_section $@
 	generate_quick_access_section "$1"
 	generate_html_div "$1" end container
+	generate_html_script "$1"
 	generate_html_body "$1" end
 	generate_html_section "$1" end
 	index=
@@ -1071,11 +1071,12 @@ function generate_chapter {
 	generate_html_head "$1/README.md" begin
 	generate_html_head "$1/README.md" end
 	generate_html_body "$1/README.md" begin
-	#generate_index_section "$1/README.md"
+	generate_html_style "$1"
 	generate_breadcrumb_section "$1"
 	generate_header_section "$1/README.md"
 	generate_comment_section "$1/README.md"
 	generate_quick_access_section "$1/README.md"
+	generate_html_script "$1"
 	generate_html_body "$1/README.md" end
 	generate_html_section "$1/README.md" end
 	index=
