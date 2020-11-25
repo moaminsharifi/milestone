@@ -5,3 +5,4 @@
 *.output.txt
 html-files/
 markdown-files/
+bootstrap*
