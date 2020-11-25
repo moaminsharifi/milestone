@@ -390,19 +390,27 @@ function generate_html_list {
 # requires path to page
 # required text
 # optional address
+# optional class
 function generate_html_item {
 	local page="$1"
 	local text="$2"
 	local address="$3"
+	local class="$4"
 	local tag=
 	local tag_end="</li>"
 
-	if [ -n "$address" ]
+	if [ -n "$class " ]
 	then
-		tag="<li><a href=\"${address}\">"
-		tag_end="</a></li>"
+		tag="<li class=\"${class}\">"
 	else
 		tag="<li>"
+	fi
+
+	if [ -n "$address" ]
+	then
+		tag="${tag}<a href=\"${address}\">"
+		tag_end="</a></li>"
+	else
 		tag_end="</li>"
 	fi
 
@@ -937,33 +945,34 @@ function generate_quick_access_section {
 	local next_index=
 	local previous_index=
 
-	generate_html_header "$1" 2 "Quick Access"
-	generate_html_list "$1" begin pager "float: left;"
+	generate_html_list "$1" begin pager #"float: left;"
 
 	nearest_path "$1" up
 	previous_index="$page_index"
 	if [ -n "$previous_index" ]
 	then
-		generate_html_item "$1" "previous page" "${previous_index}.html"
+		generate_html_item "$1" "previous page" "${previous_index}.html" previous
 	else
-		generate_html_item "$1" "top page" "index.html"
+		generate_html_item "$1" "previous page" "#" "previous disabled"
+		generate_html_item "$1" "top page" "index.html" middle
 	fi
 
 	nearest_path "$1" down
 	next_index="$page_index"
 	if [ -n "$next_index" ]
 	then
-		generate_html_item "$1" "next page" "${next_index}.html"
+		generate_html_item "$1" "next page" "${next_index}.html" next
 	elif [ "$1" = "./README.md" ]
 	then
-		generate_html_item "$1" "next page" "1.0.html"
+		generate_html_item "$1" "next page" "1.0.html" next
 	else
-		generate_html_item "$1" "top page" "index.html"
+		generate_html_item "$1" "next page" "#" "next disabled"
+		generate_html_item "$1" "top page" "index.html" middle
 	fi
 
 	if [ -n "$previous_index" ] && [ -n "$next_index" ]
 	then
-		generate_html_item "$1" "top page" "index.html"
+		generate_html_item "$1" "top page" "index.html" middle
 	fi
 
 	generate_html_list "$1" end pager
