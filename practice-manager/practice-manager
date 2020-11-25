@@ -1096,7 +1096,10 @@ function generate_manuals {
 	expand_list "$1"
 
 	# include bootstrap
-	cp bootstrap.min.* html-files/
+	if [ -f "bootstrap.min.css" ] && [ -f "bootstrap.min.js" ]
+	then
+		cp bootstrap.min.* html-files/
+	fi
 }
 
 # functions for specific options
