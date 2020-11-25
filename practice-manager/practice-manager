@@ -220,7 +220,7 @@ function generate_html_script {
 	cat << EOF >> "./html-files/${index}.html"
 function darkmode() {
 	const hours = new Date().getHours()
-	const isDayTime = hours > 6 && hours < 15
+	const isDayTime = hours > 6 && hours < 20
     if (!isDayTime) {
    		var bodystyle = document.body;
    		bodystyle.classList.toggle("dark-mode");
