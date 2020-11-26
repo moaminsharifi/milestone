@@ -1,131 +1,31 @@
 #!/usr/bin/env bash
 
-# required functions
-###############################################################################
-
-## description: outputs string with style and color
-## usage: show [%style%/%color%] [string] ... [string]
-## style list:
-##     default normal bold italic strike-through blink
-##     inline newline space align
-## color list: black red green yellow blue magenta cyan white
-## note: style and colors should be embraced by % sign
-## note: only the last similar attribute in consecutive attributes is affected
-## note: %inline% and %newline% attributes affect the whole line
-## note: to align next lines, use %align% in string
-function show {
-	local output_style=sgr0
-	local output_color
-	local output_string
-	local trailing_newline=true
-	local word
-	local margin
-	local count_words=0
-
-	if [ $# -eq 0 ]
-	then
-		echo
-		return
-	fi
-
-	while [ $# -gt 0 ]
-	do
-		count_words="$(echo "$1" | wc -m)"
-		for word in $1
-		do
-			case $word in
-				# styles
-				%bold%) output_style=${word//%/} ;;
-				%normal%|default) output_style=sgr0; output_color= ;;
-				%italic%) output_style=sgr0 ;;
-				%strike-through%) output_style=sgr0 ;;
-				%dim%) output_style=${word//%/} ;;
-				%inline%) trailing_newline=false ;;
-				%newline%) echo ;;
-				%blink%) output_style=sgr0 ;;
-				%space%) echo -n " " ;;
-				%align%)
-					if [ "$alignment_position" -gt 0 ]
-					then
-						printf "%.0s " $(seq 2 "$alignment_position")
-					fi ;;
-				# colors
-				%black%) output_color=0 ;;
-				%red%) output_color=1 ;;
-				%green%) output_color=2 ;;
-				%yellow%) output_color=3 ;;
-				%blue%) output_color=4 ;;
-				%magenta%) output_color=5 ;;
-				%cyan%) output_color=6 ;;
-				%white%) output_color=7 ;;
-				# string
-				*)
-					# set output style first, then coloring
-					tput $output_style
-					if [ -n "$output_color" ]
-					then
-						tput setaf $output_color
-					fi
-
-					# store alignment position globally for next execution
-					margin="${1%&align*}"
-					margin="${#margin}"
-					output_string=$word
-					if [ "$margin" -lt "${#1}" ]
-					then
-						alignment_position=$((margin + 1))
-						output_string="${word//&align/}"
-					elif [ -z "$alignment_position" ]
-					then
-						alignment_position=0
-					fi
-
-					echo -ne "$output_string"
-					if [ "$count_words" -gt 1 ] && [ "$word" != "&align" ]
-					then
-						echo -n " "
-					fi
-					((count_words--))
-					;;
-			esac
-		done
-		shift
-	done
-	
-	# trailing newline is set unless inline attribute given
-	if $trailing_newline;
-	then
-		echo
-	fi
-}
-
 # terminates script executaion after call
 function usage {
 	echo "Practice Page Manager"
 	echo
-	echo "Usage: run under a practice directoy"
-	echo
 	echo "Options:"
 	echo
-	echo "  -a, --add-practice <path/to/directory> <page_name> [#position]"
-	echo "  -A, --add-chapter <path/to/directory> <chapter_name> [#position]"
+	echo "  -r <path/to/file>     Remove practice or chapter"
+	echo "  -f                    Force compile, regenerates all output files"
 	echo
-	echo "  -j, --join-practice <path/to/file> [#position]"
-	echo "  -J, --join-chapter <path/to/directory> [#position]"
+	echo "Usage:"
 	echo
-	echo "  -d, --delete-practice <path/to/file>"
-	echo "  -D, --delete-chapter <path/to/directory>"
+	echo "  practice-manager      Reads files and generates html-files"
 	echo
-	echo "  -r, --rename-practice <path/to/file> <new_name>"
-	echo "  -R, --rename-chapter <path/to/directory> <new_name>"
+	echo "  practice-manager <source> <destination>"
+	echo "                        Moves and/or renames practice or chapter"
 	echo
-	echo "  -m, --move-practice <source> <destination> [#position]"
-	echo "  -M, --move-chapter <source> <destination> [#position]"
-	echo
-	echo "  -s, --swap-practice <source> <destination>"
-	echo "  -S, --swap-chapter <source> <destination>"
-	echo
-	echo "  -f, --force_compile"
+	echo "  practice-manager <path>"
+	echo "                        Creates new chapter if there is no extension"
+	echo "                        at the end of path (e.g. python/chapter1)"
+	echo "                        or creates a practice page if extension"
+	echo "                        given (e.g. python/chapter1/sample.py)"
+	echo "                        If file already exists but not indexed,"
+	echo "                        it will be joined and indexed in practices."
+	echo "                        This is useful if you already have practice"
+	echo "                        file from the past and have not joined them"
+	echo "                        yet. (e.g. python/chapter1/old.py)"
 	exit 0
 }
 
@@ -1483,32 +1383,44 @@ function touch_sources {
 		done < {}' \;
 }
 
-# Parameter Parser
+function analyze_paramters {
+	local source="$1"
+	local destination="$2"
+
+	echo "not implemented yet"
+}
+
+# Analyze Options and Paramters
 ###############################################################################
+
+#-a|--add-practice) add_practice "$PWD/$2" "$3" "$4"; shift 3 ;;
+#-A|--add-chapter) add_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
+#-j|--join-practice) join_practice "$PWD/$2" "$3"; shift 2 ;;
+#-J|--join-chapter) join_chapter "$PWD/$2" "$3"; shift 2 ;;
+#-r|--rename-practice) rename_practice "$PWD/$2" "$3"; shift 2 ;;
+#-R|--rename-chapter) rename_chapter "$PWD/$2" "$3"; shift 2 ;;
+#-m|--move-practice) move_practice "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
+#-M|--move-chapter) move_chapter "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
+#-s|--swap-practice) swap_practice "$PWD/$2" "$PWD/$3"; shift 2 ;;
+#-S|--swap-chapter) swap_chapter "$PWD/$2" "$PWD/$3"; shift 2 ;;
 
 if [ $# -eq 0 ]
 then
+	# At least one .index must exist at current directory
+	# Everything starts here
 	generate_manuals "./.index"
+elif [ $# -eq 2 ] && [ "${1:0:1}" = "-" ]
+then
+	case "$1" in
+		-h|--help) usage ;;
+		-r) remove_practice "$PWD/${2/$PWD/}" ;;
+		-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
+		*) usage ;;
+	esac
+elif [ $# -eq 2 ]
+then
+	# Works with both relative and absolute path schematics
+	analyze_paramters "$PWD/${1/$PWD/}" "$PWD/${2/$PWD/}"
 else
-	while [ $# -gt 0 ]
-	do
-		case "$1" in
-			-h|--help) usage ;;
-			-a|--add-practice) add_practice "$PWD/$2" "$3" "$4"; shift 3 ;;
-			-A|--add-chapter) add_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
-			-j|--join-practice) join_practice "$PWD/$2" "$3"; shift 2 ;;
-			-J|--join-chapter) join_chapter "$PWD/$2" "$3"; shift 2 ;;
-			-d|--delete-practice) remove_practice "$PWD/$2"; shift 1 ;;
-			-D|--delete-chapter) remove_chapter "$PWD/$2"; shift 1 ;;
-			-r|--rename-practice) rename_practice "$PWD/$2" "$3"; shift 2 ;;
-			-R|--rename-chapter) rename_chapter "$PWD/$2" "$3"; shift 2 ;;
-			-m|--move-practice) move_practice "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
-			-M|--move-chapter) move_chapter "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
-			-s|--swap-practice) swap_practice "$PWD/$2" "$PWD/$3"; shift 2 ;;
-			-S|--swap-chapter) swap_chapter "$PWD/$2" "$PWD/$3"; shift 2 ;;
-			-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
-			*) usage ;;
-		esac
-		shift
-	done
+	usage
 fi
