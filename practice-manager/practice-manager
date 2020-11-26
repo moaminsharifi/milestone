@@ -1403,7 +1403,9 @@ function remove_files {
 
 # requires path to source and destination
 function move_files {
+	tput bold
 	echo "not implemented yet"
+	tput sgr0
 }
 
 # requires relative path
@@ -1415,12 +1417,16 @@ function validate_files {
 	if [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
 	then
-		echo "chapter exists and indexed: $path"
+		return 0
 	# if does not have extension and exists but not indexed: check and join
 	elif [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 0 ]
 	then
+		#join_chapter "$path"
 		echo "chapter exists but not indexed: $path"
+		tput bold
+		echo "not implemented yet"
+		tput sgr0
 	# if does not have extension and does not exist: create chapter
 	elif [ -z "$extension" ] && ! [ -d "$path" ]
 	then
@@ -1429,12 +1435,16 @@ function validate_files {
 	elif [ -n "$extension" ] && [ -f "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
 	then
-		echo "page exists and indexed: $path"
+		return 0
 	# if has extension and exists but is not indexed: check and join practice
 	elif [ -n "$extension" ] && [ -f "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 0 ]
 	then
+		#join_practice "$path"
 		echo "page exists but not indexed: $path"
+		tput bold
+		echo "not implemented yet"
+		tput sgr0
 	# if has extension but does not exist, create practice page
 	elif [ -n "$extension" ] && ! [ -f "$path" ]
 	then
