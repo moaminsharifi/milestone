@@ -4,19 +4,30 @@
 function usage {
 	echo "Practice Page Manager"
 	echo
+	tput bold
 	echo "Options:"
+	tput sgr0
 	echo
 	echo "  -r <path/to/file>     Remove practice or chapter"
 	echo "  -f                    Force compile, regenerates all output files"
 	echo
+	tput bold
 	echo "Usage:"
+	tput sgr0
 	echo
-	echo "  practice-manager      Reads files and generates html-files"
+	tput setaf 7
+	echo "  $ practice-manager"
+	tput sgr0
+	echo "                        Reads files and generates html-files"
 	echo
-	echo "  practice-manager <source> <destination>"
-	echo "                        Moves and/or renames practice or chapter"
+	tput setaf 7
+	echo "  $ practice-manager <source> <destination>"
+	tput sgr0
+	echo "                        Moves and/or renames practice and/or chapter"
 	echo
-	echo "  practice-manager <path>"
+	tput setaf 7
+	echo "  $ practice-manager <path>"
+	tput sgr0
 	echo "                        Creates new chapter if there is no extension"
 	echo "                        at the end of path (e.g. python/chapter1)"
 	echo "                        or creates a practice page if extension"
@@ -26,7 +37,6 @@ function usage {
 	echo "                        This is useful if you already have practice"
 	echo "                        file from the past and have not joined them"
 	echo "                        yet. (e.g. python/chapter1/old.py)"
-	exit 0
 }
 
 # html line generators
@@ -1069,29 +1079,54 @@ function generate_configuration {
 	fi
 
 	cat << EOF > "$page"
+## Program used to interpret or compile the practice file
 COMPILER=
 COMPILER_OPTIONS=
+
+## Whether source should be compiled
+## Set false for scripting languages
 COMPILABLE=true
+
+## Whether all sources in one line of .index file should appear in linkage
+## usually other files are headers only and won't need to be linked to source
+INCLUDES=false
+
+## Whether linker explicitly specified
+## This is only used for compilable sources
 LINKER=
 LINKER_OPTIONS=
 LINKABLE=
+
+## Whether source can be executed either as compiled source or interpretable
+## Set to false for text files
 EXECUTABLE=true
-INCLUDES=false
+
+## Whether different sections should appear
+## Source is always false for readme files
 COMMENTS=true
 SOURCE=true
+
+## Following extensions will be generated when new practices are created
 ADDITIONAL_EXTENSIONS="reference.txt comment.txt title.txt"
-# levels: amateur, intermediate, expert
+
+## This feature will be used later
 TECHNICAL_LEVEL=
+
+## Whether comments should be verified by .reference.txt files or not.
+## This feature will be used later
+REFERENCE_VALIDITY=true
+
+## This feature will be used later
+TERMINATE=false
+TERMINATION_SIGNAL=SIGTERM
+RUNTIME=3
 EOF
 }
 
 # requires path to location where practice will be added
-# requires practice name as second parameter
-# optional position as third paramter
 function add_practice {
-	local location="${1%/}"
-	local practice_name="$2"
-	local position="$3"
+	local location="${1%/*}"
+	local practice_name="${1##*/}"
 
 	if [ -z "$location" ]
 	then
@@ -1108,7 +1143,7 @@ function add_practice {
 	elif ! [ -d "$location" ]
 	then
 		tput bold
-		echo "location must be a directory" >&2
+		echo "location must be a directory: $location" >&2
 		tput sgr0
 		return 1
 	elif [ $(grep -c "$practice_name" "${location}/.index") -gt 0 ]
@@ -1119,42 +1154,22 @@ function add_practice {
 	fi
 
 	# index practice in corresponding location
-	if [ -n "$position" ] && [ -f "${location}/.index" ]
-	then
-		# only readme files are in position 1, shift all indexed up
-		((position++))
-		sed -i "${position}i ${practice_name}" "${location}/.index"
-	else
-		echo "$practice_name" >> "${location}/.index"
-	fi
+	echo "$practice_name" >> "${location}/.index"
 
 	# create practice file itself
 	touch "${location}/${practice_name}"
 
-	update_configuration "${location}/${practice_name}"
-
 	practice_name="${practice_name%.*}"
-	for extension in $ADDITIONAL_EXTENSIONS
+	for extension in comment.txt title.txt reference.txt
 	do
-		if [ "$extension" = "comment.txt" ] && [ "$COMMENTS" != "true" ]
-		then
-			continue
-		fi
-
 		touch "${location}/${practice_name}.${extension}"
 	done
-
-	echo "files created:"
-	find "${location//$PWD/.}" -type f -name "${practice_name}*" | nl
 }
 
 # requires path to location where chapter will be added
-# requires chapter name as second parameter
-# optional position as third paramter
 function add_chapter {
-	local location="${1%/}"
-	local chapter_name="$2"
-	local position="$3"
+	local location="${1%/*}"
+	local chapter_name="${1##*/}"
 
 	if [ -z "$location" ]
 	then
@@ -1165,45 +1180,38 @@ function add_chapter {
 	elif [ -z "$chapter_name" ]
 	then
 		tput bold
-		echo "chapter name not given" >&2
+		echo "practice name not given" >&2
 		tput sgr0
 		return 1
 	elif ! [ -d "$location" ]
 	then
 		tput bold
-		echo "location must be a directory" >&2
+		echo "location must be a directory: $location" >&2
 		tput sgr0
 		return 1
 	fi
 
-	# index chapter in corresponding location
-	if [ -n "$position" ] && [ -f "${location}/.index" ]
+	# if the holding directory itself does not have .index create one!
+	if ! [ -f "${location}/.index" ] || [ "$(wc -l < "${location}/.index")" -eq 0 ]
 	then
-		# only readme files are in index 0, shift all indexes up
-		((position++))
-		sed -i "${position}i ${chapter_name}" "${location}/.index"
-	else
-		if ! [ -f "${location}/.index" ] || [ "$(wc -l < "${location}/.index")" -eq 0 ]
-		then
-			# create additional extensions
-			generate_configuration "${location}"
+		# create additional extensions
+		generate_configuration "${location}"
 
-			echo "README.md" > "${location}/.index"
-			echo -e "# Practice Repository\n" > "${location}/README.md"
-			echo "This file is automatically created by Milestone Practice Manager" >> "${location}/README.md"
-			echo "README.md" > "${location}/.index"
-			for extension in comment.txt title.txt
-			do
-				touch "${location}/README.${extension}"
-			done
-			echo "EXECUTABLE=false" > "${location}/README.config"
-			echo "SOURCE=false" >> "${location}/README.config"
-		fi
-		echo "$chapter_name" >> "${location}/.index"
+		echo "README.md" > "${location}/.index"
+		echo -e "# Practice Repository\n" > "${location}/README.md"
+		echo "This file is automatically created by Milestone Practice Manager" >> "${location}/README.md"
+		echo "README.md" > "${location}/.index"
+		for extension in comment.txt title.txt
+		do
+			touch "${location}/README.${extension}"
+		done
+		echo "EXECUTABLE=false" > "${location}/README.config"
+		echo "SOURCE=false" >> "${location}/README.config"
 	fi
+	echo "$chapter_name" >> "${location}/.index"
 
 	mkdir "${location}/${chapter_name}"
-	echo "# $chapter_name" > "${location}/${chapter_name}/README.md"
+	echo -e "# $chapter_name\n" > "${location}/${chapter_name}/README.md"
 	echo "This file is automatically created by Milestone Practice Manager" >> "${location}/${chapter_name}/README.md"
 	echo "README.md" > "${location}/${chapter_name}/.index"
 
@@ -1213,9 +1221,6 @@ function add_chapter {
 	done
 	echo "EXECUTABLE=false" > "${location}/${chapter_name}/README.config"
 	echo "SOURCE=false" >> "${location}/${chapter_name}/README.config"
-
-	echo "files created:"
-	find "${location//$PWD/.}/${chapter_name}/" -type f | nl
 }
 
 # requires relative path to practice location
@@ -1383,20 +1388,96 @@ function touch_sources {
 		done < {}' \;
 }
 
+# requires path to page or chapter
+function remove_files {
+	if [ -f "./${1#\.\/}" ]
+	then
+		remove_practice "./${1#\.\/}"
+	else
+		remove_chapter "./${1#\.\/}"
+	fi
+}
+
+# requires path to source and destination
+function move_files {
+	echo "not implemented yet"
+}
+
+# requires relative path
+function validate_files {
+	local path="${1%/}"
+	local extension="$(echo "$path" | sed -n 's/.*\.\([a-zA-Z]*\)$/\1/p')"
+
+	# if does not have extension and exists and indexed: check all files within
+	if [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
+		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
+	then
+		echo "chapter exists and indexed: $path"
+	# if does not have extension and exists but not indexed: check and join
+	elif [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
+		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 0 ]
+	then
+		echo "chapter exists but not indexed: $path"
+	# if does not have extension and does not exist: create chapter
+	elif [ -z "$extension" ] && ! [ -d "$path" ]
+	then
+		add_chapter "$path"
+	# if has extension and exists and indexed: check all files with it
+	elif [ -n "$extension" ] && [ -f "$path" ] && [ -f "${path%/*}/.index" ]\
+		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
+	then
+		echo "page exists and indexed: $path"
+	# if has extension and exists but is not indexed: check and join practice
+	elif [ -n "$extension" ] && [ -f "$path" ] && [ -f "${path%/*}/.index" ]\
+		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 0 ]
+	then
+		echo "page exists but not indexed: $path"
+	# if has extension but does not exist, create practice page
+	elif [ -n "$extension" ] && ! [ -f "$path" ]
+	then
+		add_practice "$path"
+	# otherwise, unhandled error
+	else
+		return 1
+	fi
+}
+
 function analyze_paramters {
-	local source="$1"
+	local source="${1#\.\/}"
 	local destination="$2"
 
-	echo "not implemented yet"
+	if [ -z "$destination" ]
+	then
+		local hierarchy="."
+		local entry=
+		for entry in ${source//\//$'\n'}
+		do
+			hierarchy+="/$entry"
+			if ! validate_files "${hierarchy/$PWD/}"
+			then
+				tput bold
+				echo "path analysis failed on: $path" >&2
+				tput sgr0
+			fi
+		done
+	else
+		destination="./${destination#\.\/}"
+		if ! move_files "$source" "$destination"
+		then
+			tput bold
+			echo "cannot move source: $source" >&2
+			tput sgr0
+		fi
+	fi
 }
 
 # Analyze Options and Paramters
 ###############################################################################
 
-#-a|--add-practice) add_practice "$PWD/$2" "$3" "$4"; shift 3 ;;
-#-A|--add-chapter) add_chapter "$PWD/$2" "$3" "$4"; shift 3 ;;
-#-j|--join-practice) join_practice "$PWD/$2" "$3"; shift 2 ;;
-#-J|--join-chapter) join_chapter "$PWD/$2" "$3"; shift 2 ;;
+#-a|--add-practice) add_practice "$PWD/$2"
+#-A|--add-chapter) add_chapter "$PWD/$2"
+#-j|--join-practice) join_practice "$PWD/$2"
+#-J|--join-chapter) join_chapter "$PWD/$2"
 #-r|--rename-practice) rename_practice "$PWD/$2" "$3"; shift 2 ;;
 #-R|--rename-chapter) rename_chapter "$PWD/$2" "$3"; shift 2 ;;
 #-m|--move-practice) move_practice "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
@@ -1409,18 +1490,17 @@ then
 	# At least one .index must exist at current directory
 	# Everything starts here
 	generate_manuals "./.index"
-elif [ $# -eq 2 ] && [ "${1:0:1}" = "-" ]
-then
+else
 	case "$1" in
 		-h|--help) usage ;;
-		-r) remove_practice "$PWD/${2/$PWD/}" ;;
+		-r) remove_files "$2" ;;
 		-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
-		*) usage ;;
+		*)
+			if [ "${1:0:1}" = "-" ]
+			then
+				usage
+			else
+				analyze_paramters "$1" "$2"
+			fi ;;
 	esac
-elif [ $# -eq 2 ]
-then
-	# Works with both relative and absolute path schematics
-	analyze_paramters "$PWD/${1/$PWD/}" "$PWD/${2/$PWD/}"
-else
-	usage
 fi
