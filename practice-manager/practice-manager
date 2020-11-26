@@ -437,7 +437,7 @@ function compile_source {
 
 	execution_command="$LINKER $LINKER_OPTIONS $binary $object $headers"
 
-	if ! [ -f "$output" ] || [ "$source_change_time" -ge "$output_change_time" ]
+	if [ "$LINKABLE" = "true" ] && ! [ -f "$output" ] || [ "$source_change_time" -ge "$output_change_time" ]
 	then
 		if [ "$COMPILABLE" = "true" ] && [ -n "$LINKER" ]
 		then
@@ -457,7 +457,7 @@ function compile_source {
 		fi
 	fi
 
-	if [ "$COMPILABLE" = "true" ]
+	if [ "$COMPILABLE" = "true" ] && [ "$LINKABLE" = "true" ]
 	then
 		binary="${binary##*/}"
 		object="${object##*/}"
@@ -1197,14 +1197,17 @@ function add_chapter {
 		# create additional extensions
 		generate_configuration "${location}"
 
+		# index
 		echo "README.md" > "${location}/.index"
+		# readme
 		echo -e "# Practice Repository\n" > "${location}/README.md"
 		echo "This file is automatically created by Milestone Practice Manager" >> "${location}/README.md"
-		echo "README.md" > "${location}/.index"
+		# additionals
 		for extension in comment.txt title.txt
 		do
 			touch "${location}/README.${extension}"
 		done
+		# config
 		echo "EXECUTABLE=false" > "${location}/README.config"
 		echo "SOURCE=false" >> "${location}/README.config"
 	fi
