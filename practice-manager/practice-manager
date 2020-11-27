@@ -76,7 +76,19 @@ function generate_html_head {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<!--
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+-->
+<!-- bootstrap -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-CuOF+2SnTUfTwSZjCXf01h7uYhfOBuxIhGKPbfEJ3+FqH/s6cIFN9bGr1HmAg4fQ" crossorigin="anonymous">
+<!-- prims plugin styles -->
+<Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/autolinker/prism-autolinker.min.css" rel="stylesheet">
+<Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/command-line/prism-command-line.min.css" rel="stylesheet">
+<Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet">
+<Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet">
+<!-- ajax -->
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/themes/prism-tomorrow.min.css'>
+
 <title>${title}</title>
 EOF
 	else
@@ -112,10 +124,40 @@ function generate_html_style {
 		then
 			echo "<style>" >> "./html-files/${index}.html"
 
-			cat << EOF >> "./html-files/${index}.html"
+			cat << 'EOF' >> "./html-files/${index}.html"
 .dark-mode {
-  background-color: black;
-  color: #999;
+	background-color: black;
+	color: #999;
+}
+
+.dark-mode .page-link {
+	color: #bdc0c4;
+	background-color: #212529;
+	border: 1px solid #616161;
+}
+
+.dark-mode .breadcrumb {
+	background-color: #212529;
+
+}
+
+.dark-mode .breadcrumb a {
+	color: #6c757d;
+}
+
+/* prism overrides */
+div.code-toolbar>.toolbar a,
+div.code-toolbar>.toolbar button,
+div.code-toolbar>.toolbar span {
+	margin-left: 0.7rem;
+}
+
+pre {
+	margin-bottom: 1.3rem !important;
+}
+
+.breadcrumb-item+.breadcrumb-item::before {
+	content: '> ';
 }
 
 EOF
@@ -183,13 +225,15 @@ function generate_html_script {
 			echo "<script>" >> "./html-files/${index}.html"
 
 			cat << 'EOF' >> "./html-files/${index}.html"
-function darkmode() {
+function darkmode(manual = false) {
 	const hours = new Date().getHours()
 	const isDayTime = hours > 6 && hours < 20
-    if (!isDayTime) {
-   		var bodystyle = document.body;
-   		bodystyle.classList.toggle("dark-mode");
-    }
+	var bodystyle = document.body;
+    if (!isDayTime || manual) {
+   		bodystyle.classList.add("dark-mode");
+    } else {
+   		bodystyle.classList.remove("dark-mode");
+	}
 }
 darkmode();
 EOF
@@ -228,36 +272,65 @@ function generate_html_body {
 	if [ "$side" = "begin" ]
 	then
 		cat << EOF >> "./html-files/${index}.html"
-<body>
+<body class="p-3">
 EOF
 	else
 		cat << EOF >> "./html-files/${index}.html"
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-alpha3/dist/js/bootstrap.bundle.min.js" integrity="sha384-popRpmFF9JQgExhfw5tZT4I9/CI5e2QcuUZPOVXb1m7qUmeR2b50u+YFEYe1wgzy" crossorigin="anonymous"></script>
+<!-- prism js -->
+<script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/prism.min.js'></script>
+<!-- prism languages -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-asm6502.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-java.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-bash.min.js"></script>
+<!-- prism plugins -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/toolbar/prism-toolbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/autolinker/prism-autolinker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/command-line/prism-command-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/normalize-whitespace/prism-normalize-whitespace.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/remove-initial-line-feed/prism-remove-initial-line-feed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/show-language/prism-show-language.min.js"></script>
+
+<!--
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+-->
 </body>
 EOF
 	fi
 }
 
 # requires path to page
-# optional css style name
+# optional begin/end
+# optional pre class
+# optional code class
+# optional attributes
 function generate_html_code {
 	local page="${1%.*}"
 	page="${page##*/}"
 	local side="${2:-begin}"
-	local css_style="$3"
+	local pre_class="$3"
+	local code_class="$4"
 	local code_tag
 
-	if [ -n "$css_style" ]
+	if [ -n "$code_class" ]
 	then
-		code_tag="<code class=\"${css_style}\">"
+		code_tag="<code class=\"${code_class}\">"
 	else
 		code_tag="<code>"
 	fi
 
 	if [ "$side" = "begin" ]
 	then
+		shift 4
 		cat << EOF >> "./html-files/${index}.html"
-<pre>
+<pre class="${pre_class}" $@>
 ${code_tag}
 EOF
 	else
@@ -305,13 +378,20 @@ function generate_html_break {
 # requires path to page
 # requires link
 # requires title
+# optional css class
 function generate_html_link {
 	local page="${1%.*}"
 	page="${page##*/}"
 	local link="${2:-#}"
 	local title="${3:-link}"
+	local class="$4"
 
-	echo "<a href=\"$link\">$title</a>" >> "./html-files/${index}.html"
+	if [ -n "$class" ]
+	then
+		echo "<a class=\"${class}\" href=\"$link\">$title</a>" >> "./html-files/${index}.html"
+	else
+		echo "<a href=\"$link\">$title</a>" >> "./html-files/${index}.html"
+	fi
 }
 
 # requires path to page
@@ -366,14 +446,42 @@ function generate_html_list {
 }
 
 # requires path to page
+# optional begin/end
+# optional css class
+# optional css style
+function generate_html_nav {
+	local page="$1"
+	local side="${2:-begin}"
+	local class="$3"
+	local tag=
+
+	if [ "$side" = "begin" ]
+	then
+		if [ -n "$class" ]
+		then
+			tag="<nav aria-label=\"${class}\">"
+		else
+			tag="<nav>"
+		fi
+
+		echo "${tag}${text}" >> "./html-files/${index}.html"
+	elif [ "$side" = "end" ]
+	then
+		echo "</nav>" >> "./html-files/${index}.html"
+	fi
+}
+
+# requires path to page
 # required text
 # optional address
 # optional class
+# optional link class
 function generate_html_item {
 	local page="$1"
 	local text="$2"
 	local address="$3"
 	local class="$4"
+	local link_class="$5"
 	local tag=
 	local tag_end="</li>"
 
@@ -386,7 +494,12 @@ function generate_html_item {
 
 	if [ -n "$address" ]
 	then
-		tag="${tag}<a href=\"${address}\">"
+		if [ -n "$link_class" ]
+		then
+			tag="${tag}<a class=\"${link_class}\" href=\"${address}\">"
+		else
+			tag="${tag}<a href=\"${address}\">"
+		fi
 		tag_end="</a></li>"
 	else
 		tag_end="</li>"
@@ -425,10 +538,12 @@ function update_configuration {
 # requires path to page
 # requires compile/link/run option
 # requires command
+# optional syntax
 function generate_execution_mode {
 	local page="${1}"
 	local mode="${2:-compile}"
 	local command="${3}"
+	local syntax="${4:-practices}"
 
 	if [ -z "$command" ]
 	then
@@ -438,8 +553,10 @@ function generate_execution_mode {
 		return 1
 	fi
 
-	generate_html_header "$1" 4 "${mode}"
-	generate_html_text "$1" "$command" command-style
+	generate_html_header "$1" 5 "${mode}"
+	generate_html_code "$1" begin "command-line" "language-bash" "data-user=\"${syntax}\" data-host=\"milestone\""
+	echo "$command" >> "./html-files/${index}.html"
+	generate_html_code "$1" end
 }
 
 # requires absolute path to source
@@ -450,6 +567,14 @@ function compile_source {
 	if [ "$EXECUTABLE" != "true" ]
 	then
 		return 2
+	fi
+
+	local syntax=
+	if [ -n "$LANGUAGE" ]
+	then
+		syntax="$LANGUAGE"
+	else
+		syntax="${1##*.}"
 	fi
 
 	generate_html_header "$1" 2 "Execution"
@@ -498,7 +623,7 @@ function compile_source {
 				tput sgr0
 				return 1
 			fi
-			generate_execution_mode "$1" compile "$execution_command"
+			generate_execution_mode "$1" compile "$execution_command" "$syntax"
 		else
 			if [ -f "$binary" ]
 			then
@@ -510,7 +635,7 @@ function compile_source {
 		if [ "$COMPILABLE" = "true" ]
 		then
 			execution_command="$COMPILER $COMPILER_OPTIONS ${object##*/} ${1##*/}"
-			generate_execution_mode "$1" compile "$execution_command"
+			generate_execution_mode "$1" compile "$execution_command" "$syntax"
 		fi
 	fi
 
@@ -546,7 +671,7 @@ function compile_source {
 		done
 
 		execution_command="$LINKER $LINKER_OPTIONS $binary $object $includes"
-		generate_execution_mode "$1" link "$execution_command"
+		generate_execution_mode "$1" link "$execution_command" "$syntax"
 	fi
 }
 
@@ -700,7 +825,8 @@ function generate_breadcrumb_section {
 	local title=
 	local local_index=
 
-	echo "<ul class=\"breadcrumb\">" >> "./html-files/${index}.html"
+	echo "<nav aria-label=\"breadcrumb\">" >> "./html-files/${index}.html"
+	echo "<ol class=\"breadcrumb\">" >> "./html-files/${index}.html"
 
 	for entry in ${1//\//$'\n'}
 	do
@@ -721,21 +847,22 @@ function generate_breadcrumb_section {
 				local_index="${local_index//[^\/]/}"
 				local_index="${#local_index}"
 				page="$(echo "$page_index" | cut -d"." -f1-"$local_index").0.html"
-				echo "<li><a href=\"${page}\">${title:-"..."}</a></li>" >> "./html-files/${index}.html"
+				echo "<li class=\"breadcrumb-item\"><a href=\"${page}\">${title:-"..."}</a></li>" >> "./html-files/${index}.html"
 			fi
 		elif [ -f "$hierarchy" ] && [ -f "${hierarchy%.*}.title.txt" ]
 		then
 			title="$(cat "${hierarchy%.*}.title.txt")"
-			echo "<li class=\"active\">${title:-"..."}</li>" >> "./html-files/${index}.html"
+			echo "<li class=\"breadcrumb-item active\">${title:-"..."}</li>" >> "./html-files/${index}.html"
 		else
 			tput bold
 			echo "untitled breadcrumb: ${hierarchy}"
 			tput sgr0
-			echo "<li>...</li>" >> "./html-files/${index}.html"
+			echo "<li class=\"breadcrumb-item\">...</li>" >> "./html-files/${index}.html"
 		fi
 	done
 
-	echo "</ul>" >> "./html-files/${index}.html"
+	echo "</ol>" >> "./html-files/${index}.html"
+	echo "</nav>" >> "./html-files/${index}.html"
 }
 
 function generate_index_section {
@@ -789,7 +916,16 @@ function generate_source_section {
 	while [ $# -gt 0 ]
 	do
 		generate_page_name "${1}"
-		generate_html_code "$1" begin
+
+		local syntax=
+		if [ -n "$LANGUAGE" ]
+		then
+			syntax="$LANGUAGE"
+		else
+			syntax="${1##*.}"
+		fi
+
+		generate_html_code "$1" begin "line-numbers" "language-${syntax}"
 		OLD_IFS="$IFS"
 		IFS=
 		local line
@@ -837,7 +973,7 @@ function generate_output_section {
 		else
 			"$binary" > "$output"
 		fi
-		generate_execution_mode "$1" run "./${binary##*/}"
+		generate_execution_mode "$1" run "./${binary##*/}" "$LANGUAGE"
 	else
 		if [ -f "$input" ]
 		then
@@ -845,7 +981,7 @@ function generate_output_section {
 		else
 			"$COMPILER" "$binary" > "$output"
 		fi
-		generate_execution_mode "$1" run "$COMPILER ${1##*/}"
+		generate_execution_mode "$1" run "$COMPILER ${1##*/}" "$LANGUAGE"
 	fi
 	echo >> "$output"
 
@@ -929,31 +1065,33 @@ function generate_quick_access_section {
 	nearest_path "$1" down
 	next_index="$page_index"
 
-	generate_html_list "$1" begin pager #"float: left;"
+	generate_html_nav "$1" begin "Practice Navigation"
+	generate_html_list "$1" begin pagination
 
 	if [ -n "$previous_index" ]
 	then
-		generate_html_item "$1" "previous page" "${previous_index}.html" previous
+		generate_html_item "$1" "previous page" "${previous_index}.html" page-item page-link
 	else
-		generate_html_item "$1" "previous page" "#" "previous disabled"
+		generate_html_item "$1" "previous page" "#" "page-item disabled" page-link
 	fi
 
 	if [ -z "$previous_index" ] || [ -z "$next_page" ]
 	then
-		generate_html_item "$1" "top page" "index.html" middle
+		generate_html_item "$1" "top page" "index.html" page-item page-link
 	fi
 
 	if [ -n "$next_index" ]
 	then
-		generate_html_item "$1" "next page" "${next_index}.html" next
+		generate_html_item "$1" "next page" "${next_index}.html" page-item page-link
 	elif [ "$1" = "./README.md" ]
 	then
-		generate_html_item "$1" "next page" "1.0.html" next
+		generate_html_item "$1" "next page" "1.0.html" page-item page-link
 	else
-		generate_html_item "$1" "next page" "#" "next disabled"
+		generate_html_item "$1" "next page" "#" "page-item disabled" page-link
 	fi
 
-	generate_html_list "$1" end pager
+	generate_html_list "$1" end
+	generate_html_nav "$1" end
 }
 
 function generate_table_of_content {
@@ -999,7 +1137,7 @@ function generate_table_of_content {
 				generate_html_list "$1" end
 			else
 				title="${page_index}. ${title}"
-				generate_html_item "$1" "$title <span class=\"badge\">5</span>" "${page_index}.html"
+				generate_html_item "$1" "$title" "${page_index}.html"
 			fi
 		fi
 	done < "${hierarchy}/.index"
@@ -1171,6 +1309,9 @@ function generate_configuration {
 	fi
 
 	cat << EOF > "$page"
+## Language name for syntax highlighting
+LANGUAGE=
+
 ## Program used to interpret or compile the practice file
 COMPILER=
 COMPILER_OPTIONS=
