@@ -103,17 +103,69 @@ function generate_html_header {
 function generate_html_style {
 	local page="${1%.*}"
 	page="${page##*/}"
+	local side="${2:-begin}"
+	local style="$3"
 
-	echo "<style>" >> "./html-files/${index}.html"
+	if [ -z "$style" ]
+	then
+		if [ "$side" = "begin" ]
+		then
+			echo "<style>" >> "./html-files/${index}.html"
 
-	cat << EOF >> "./html-files/${index}.html"
+			cat << EOF >> "./html-files/${index}.html"
 .dark-mode {
   background-color: black;
   color: #999;
 }
-EOF
 
-	echo "</style>" >> "./html-files/${index}.html"
+EOF
+		elif [ "$side" = "end" ]
+		then
+			echo "</style>" >> "./html-files/${index}.html"
+		fi
+	else
+		case "$style" in
+			nested-list)
+				cat << EOF >> "./html-files/${index}.html"
+.just-padding {
+  padding: 15px;
+}
+
+.list-group.list-group-root {
+  padding: 0;
+  overflow: hidden;
+}
+
+.list-group.list-group-root .list-group {
+  margin-bottom: 0;
+}
+
+.list-group.list-group-root .list-group-item {
+  border-radius: 0;
+  border-width: 1px 0 0 0;
+}
+
+.list-group.list-group-root > .list-group-item:first-child {
+  border-top-width: 0;
+}
+
+.list-group.list-group-root > .list-group > .list-group-item {
+  padding-left: 30px;
+}
+
+.list-group.list-group-root > .list-group > .list-group > .list-group-item {
+  padding-left: 45px;
+}
+
+.list-group-item .glyphicon {
+  margin-right: 5px;
+}
+EOF
+				;;
+			*)
+				;;
+		esac
+	fi
 }
 
 # requires path to page
@@ -121,10 +173,16 @@ EOF
 function generate_html_script {
 	local page="${1%.*}"
 	page="${page##*/}"
+	local side="${2:-begin}"
+	local script="$3"
 
-	echo "<script>" >> "./html-files/${index}.html"
+	if [ -z "$script" ]
+	then
+		if [ "$side" = "begin" ]
+		then
+			echo "<script>" >> "./html-files/${index}.html"
 
-	cat << EOF >> "./html-files/${index}.html"
+			cat << 'EOF' >> "./html-files/${index}.html"
 function darkmode() {
 	const hours = new Date().getHours()
 	const isDayTime = hours > 6 && hours < 20
@@ -135,8 +193,29 @@ function darkmode() {
 }
 darkmode();
 EOF
+		elif [ "$side" = "end" ]
+		then
+			echo "</script>" >> "./html-files/${index}.html"
+		fi
+	else
+		case "$script" in
+			nested-list)
+				cat << 'EOF' >> "./html-files/${index}.html"
+$(function() {
 
-	echo "</script>" >> "./html-files/${index}.html"
+  $('.list-group-item').on('click', function() {
+    $('.glyphicon', this)
+      .toggleClass('glyphicon-chevron-right')
+      .toggleClass('glyphicon-chevron-down');
+  });
+
+});
+EOF
+				;;
+			*)
+				;;
+		esac
+	fi
 }
 
 # requires path to page
@@ -220,7 +299,7 @@ EOF
 
 # requires path to page
 function generate_html_break {
-	echo "    <br />" >> "./html-files/${index}.html"
+	echo "<br />" >> "./html-files/${index}.html"
 }
 
 # requires path to page
@@ -890,7 +969,9 @@ function generate_table_of_content {
 		then
 			if [ -f "${hierarchy}/${entry%/}/.index" ]
 			then
+				generate_html_list "$1" begin
 				generate_table_of_content "${hierarchy}/${entry%/}/.index"
+				generate_html_list "$1" end
 			else
 				tput bold
 				echo "broken hierarchy in ${hierarchy}/${entry%/}/.index"
@@ -911,12 +992,15 @@ function generate_table_of_content {
 		else
 			title="$(cat "${hierarchy}/${entry%.*}.title.txt")"
 			index_page "${hierarchy}/${entry}"
-			local_index="${page_index//[0-9]/}"
-			local_index="${#local_index}"
-			indentation="$(printf "%0.s " $(seq 1 "$local_index"))"
-			title="${indentation}${page_index}. ${title}"
-			generate_html_link "$1" "${page_index}.html" "$title"
-			generate_html_break "$1"
+			if [ "$page_index" = "0" ]
+			then
+				generate_html_list "$1" begin
+				generate_html_link "$1" "${page_index}.html" "$title"
+				generate_html_list "$1" end
+			else
+				title="${page_index}. ${title}"
+				generate_html_item "$1" "$title <span class=\"badge\">5</span>" "${page_index}.html"
+			fi
 		fi
 	done < "${hierarchy}/.index"
 }
@@ -927,14 +1011,18 @@ function generate_index_page {
 
 	generate_html_section "$page" begin
 	generate_html_head "$page" begin Practices
-	generate_html_style "$1"
+	generate_html_style "$1" begin
+	generate_html_style "$1" begin nested-list
+	generate_html_style "$1" end
 	generate_html_head "$page" end
 	generate_html_body "$page" begin
 	generate_html_header "$1" 2 "Table of Content"
 	generate_html_div "$1" begin table-of-content
 	generate_table_of_content "./.index"
 	generate_html_div "$1" end
-	generate_html_script "$1"
+	generate_html_script "$1" begin
+	generate_html_script "$1" begin nested-list
+	generate_html_script "$1" end
 	generate_html_body "$page" end
 	generate_html_section "$page" end
 }
@@ -948,7 +1036,8 @@ function generate_page {
 	index="$page_index"
 	generate_html_section "$1" begin
 	generate_html_head "$1" begin
-	generate_html_style "$1"
+	generate_html_style "$1" begin
+	generate_html_style "$1" end
 	generate_html_head "$1" end
 	generate_html_body "$1" begin
 	generate_html_div "$1" begin container
@@ -959,7 +1048,8 @@ function generate_page {
 	generate_output_section $@
 	generate_quick_access_section "$1"
 	generate_html_div "$1" end container
-	generate_html_script "$1"
+	generate_html_script "$1" begin
+	generate_html_script "$1" end
 	generate_html_body "$1" end
 	generate_html_section "$1" end
 	index=
@@ -973,12 +1063,14 @@ function generate_chapter {
 	generate_html_head "$1/README.md" begin
 	generate_html_head "$1/README.md" end
 	generate_html_body "$1/README.md" begin
-	generate_html_style "$1"
+	generate_html_style "$1" begin
+	generate_html_style "$1" end
 	generate_breadcrumb_section "$1"
 	generate_header_section "$1/README.md"
 	generate_comment_section "$1/README.md"
 	generate_quick_access_section "$1/README.md"
-	generate_html_script "$1"
+	generate_html_script "$1" begin
+	generate_html_script "$1" end
 	generate_html_body "$1/README.md" end
 	generate_html_section "$1/README.md" end
 	index=
