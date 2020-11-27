@@ -844,20 +844,26 @@ function generate_quick_access_section {
 	local next_index=
 	local previous_index=
 
-	generate_html_list "$1" begin pager #"float: left;"
-
 	nearest_path "$1" up
 	previous_index="$page_index"
+
+	nearest_path "$1" down
+	next_index="$page_index"
+
+	generate_html_list "$1" begin pager #"float: left;"
+
 	if [ -n "$previous_index" ]
 	then
 		generate_html_item "$1" "previous page" "${previous_index}.html" previous
 	else
 		generate_html_item "$1" "previous page" "#" "previous disabled"
+	fi
+
+	if [ -z "$previous_index" ] || [ -z "$next_page" ]
+	then
 		generate_html_item "$1" "top page" "index.html" middle
 	fi
 
-	nearest_path "$1" down
-	next_index="$page_index"
 	if [ -n "$next_index" ]
 	then
 		generate_html_item "$1" "next page" "${next_index}.html" next
@@ -866,12 +872,6 @@ function generate_quick_access_section {
 		generate_html_item "$1" "next page" "1.0.html" next
 	else
 		generate_html_item "$1" "next page" "#" "next disabled"
-		generate_html_item "$1" "top page" "index.html" middle
-	fi
-
-	if [ -n "$previous_index" ] && [ -n "$next_index" ]
-	then
-		generate_html_item "$1" "top page" "index.html" middle
 	fi
 
 	generate_html_list "$1" end pager
