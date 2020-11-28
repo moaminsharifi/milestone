@@ -76,11 +76,8 @@ function generate_html_head {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<!--
--->
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
 <!-- bootstrap -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-CuOF+2SnTUfTwSZjCXf01h7uYhfOBuxIhGKPbfEJ3+FqH/s6cIFN9bGr1HmAg4fQ" crossorigin="anonymous">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
 <!-- prims plugin styles -->
 <Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/autolinker/prism-autolinker.min.css" rel="stylesheet">
 <Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/command-line/prism-command-line.min.css" rel="stylesheet">
@@ -125,9 +122,13 @@ function generate_html_style {
 			echo "<style>" >> "./html-files/${index}.html"
 
 			cat << 'EOF' >> "./html-files/${index}.html"
+.pager .top {
+	float: center;
+}
+
 .dark-mode {
 	background-color: black;
-	color: #999;
+	color: #aaaaaa;
 }
 
 .dark-mode .page-link {
@@ -136,13 +137,51 @@ function generate_html_style {
 	border: 1px solid #616161;
 }
 
+.dark-mode .page-link .disabled li > a {
+	color: #bdc0c4;
+	background-color: #212529;
+	border: 1px solid #616161;
+}
+
+.dark-mode .pager li > a,
+.dark-mode .pager li > span {
+	color: #bdc0c4;
+	background-color: #212529;
+	border: 1px solid #616161;
+}
+
+.dark-mode .pager li > a:hover,
+.dark-mode .pager li > a:focus,
+.dark-mode .pager li > span:hover {
+	color: #6c757d;
+}
+
+.dark-mode .pager .disabled a,
+.dark-mode .pager .disabled a:hover,
+.dark-mode .pager .disabled a:focus {
+	color: #6c757d;
+	background-color: #212529;
+	border: 1px solid #616161;
+}
+
 .dark-mode .breadcrumb {
 	background-color: #212529;
-
 }
 
 .dark-mode .breadcrumb a {
-	color: #6c757d;
+	color: #bdc0c4;
+}
+
+.dark-mode .breadcrumb a:hover,
+.dark-mode .breadcrumb a:focus {
+	text-decoration: none;
+	color: #777777;
+}
+
+.breadcrumb a,
+.breadcrumb a:hover,
+.breadcrumb a:focus {
+	text-decoration: none;
 }
 
 /* prism overrides */
@@ -277,8 +316,10 @@ function generate_html_body {
 EOF
 	else
 		cat << EOF >> "./html-files/${index}.html"
+<!-- jquery -->
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-alpha3/dist/js/bootstrap.bundle.min.js" integrity="sha384-popRpmFF9JQgExhfw5tZT4I9/CI5e2QcuUZPOVXb1m7qUmeR2b50u+YFEYe1wgzy" crossorigin="anonymous"></script>
+<!-- bootstrap -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
 <!-- prism js -->
 <script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/prism.min.js'></script>
 <!-- prism languages -->
@@ -297,10 +338,6 @@ EOF
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/normalize-whitespace/prism-normalize-whitespace.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/remove-initial-line-feed/prism-remove-initial-line-feed.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/show-language/prism-show-language.min.js"></script>
-
-<!--
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
--->
 </body>
 EOF
 	fi
@@ -376,6 +413,12 @@ function generate_html_break {
 }
 
 # requires path to page
+function generate_html_breaker {
+	echo "<hr />" >> "./html-files/${index}.html"
+}
+
+# requires path to page
+# requires path to page
 # requires link
 # requires title
 # optional css class
@@ -449,6 +492,38 @@ function generate_html_list {
 # optional begin/end
 # optional css class
 # optional css style
+function generate_html_ordered_list {
+	local page="$1"
+	local side="${2:-begin}"
+	local class="$3"
+	local style="$4"
+	local tag=
+
+	if [ "$side" = "begin" ]
+	then
+		if [ -n "$class" ]
+		then
+			if [ -n "$style" ]
+			then
+				tag="<ol class=\"${class}\" style=\"${style}\">"
+			else
+				tag="<ol class=\"${class}\">"
+			fi
+		else
+			tag="<ol>"
+		fi
+
+		echo "${tag}${text}" >> "./html-files/${index}.html"
+	elif [ "$side" = "end" ]
+	then
+		echo "</ol>" >> "./html-files/${index}.html"
+	fi
+}
+
+# requires path to page
+# optional begin/end
+# optional css class
+# optional css style
 function generate_html_nav {
 	local page="$1"
 	local side="${2:-begin}"
@@ -473,10 +548,32 @@ function generate_html_nav {
 
 # requires path to page
 # required text
+# optional class
+# optional multiple attributes
+function generate_html_item {
+	local page="$1"
+	local text="$2"
+	local class="$3"
+	local tag=
+	local tag_end="</li>"
+
+	if [ -n "$class " ]
+	then
+		shift 3
+		tag="<li class=\"${class}\" $@>"
+	else
+		tag="<li>"
+	fi
+
+	echo "${tag}${text}${tag_end}" >> "./html-files/${index}.html"
+}
+
+# requires path to page
+# required text
 # optional address
 # optional class
 # optional link class
-function generate_html_item {
+function generate_html_item_with_link {
 	local page="$1"
 	local text="$2"
 	local address="$3"
@@ -553,7 +650,7 @@ function generate_execution_mode {
 		return 1
 	fi
 
-	generate_html_header "$1" 5 "${mode}"
+	generate_html_header "$1" 4 "${mode}"
 	generate_html_code "$1" begin "command-line" "language-bash" "data-user=\"${syntax}\" data-host=\"milestone\""
 	echo "$command" >> "./html-files/${index}.html"
 	generate_html_code "$1" end
@@ -825,8 +922,7 @@ function generate_breadcrumb_section {
 	local title=
 	local local_index=
 
-	echo "<nav aria-label=\"breadcrumb\">" >> "./html-files/${index}.html"
-	echo "<ol class=\"breadcrumb\">" >> "./html-files/${index}.html"
+	generate_html_ordered_list "$1" begin breadcrumb
 
 	for entry in ${1//\//$'\n'}
 	do
@@ -846,23 +942,22 @@ function generate_breadcrumb_section {
 				local_index="$hierarchy"
 				local_index="${local_index//[^\/]/}"
 				local_index="${#local_index}"
-				page="$(echo "$page_index" | cut -d"." -f1-"$local_index").0.html"
-				echo "<li class=\"breadcrumb-item\"><a href=\"${page}\">${title:-"..."}</a></li>" >> "./html-files/${index}.html"
+				page="$(cut -d"." -f1-"$local_index" <<< "$page_index").0.html"
+				generate_html_item_with_link "$1" "${title:-"..."}" "$page" breadcrumb-item
 			fi
 		elif [ -f "$hierarchy" ] && [ -f "${hierarchy%.*}.title.txt" ]
 		then
 			title="$(cat "${hierarchy%.*}.title.txt")"
-			echo "<li class=\"breadcrumb-item active\">${title:-"..."}</li>" >> "./html-files/${index}.html"
+			generate_html_item "$1" "${title:-"..."}" "breadcrumb-item active"
 		else
 			tput bold
 			echo "untitled breadcrumb: ${hierarchy}"
 			tput sgr0
-			echo "<li class=\"breadcrumb-item\">...</li>" >> "./html-files/${index}.html"
+			generate_html_item "$1" "..." breadcrumb-item
 		fi
 	done
 
-	echo "</ol>" >> "./html-files/${index}.html"
-	echo "</nav>" >> "./html-files/${index}.html"
+	generate_html_ordered_list "$1" end
 }
 
 function generate_index_section {
@@ -900,7 +995,6 @@ function generate_page_name {
 	local tag_end="</cite>"
 
 	echo "  ${tag}${1##*/}${tag_end}" >> "./html-files/${index}.html"
-	echo "  <hr />" >> "./html-files/${index}.html"
 }
 
 # requires path to page
@@ -912,6 +1006,7 @@ function generate_source_section {
 		return 1
 	fi
 
+	generate_html_breaker "$1"
 	generate_html_header "$1" 2 "Source"
 	while [ $# -gt 0 ]
 	do
@@ -1058,6 +1153,7 @@ function generate_quick_access_section {
 	page="${page##*/}"
 	local next_index=
 	local previous_index=
+	local button=
 
 	nearest_path "$1" up
 	previous_index="$page_index"
@@ -1068,36 +1164,33 @@ function generate_quick_access_section {
 	#generate_html_nav "$1" begin "Practice Navigation"
 	generate_html_list "$1" begin pager
 
+	button="<span aria-hidden="true">&larr;</span> previous page"
 	if [ -n "$previous_index" ]
 	then
-		#generate_html_item "$1" "previous page" "${previous_index}.html" page-item page-link
-		generate_html_item "$1" "previous page" "${previous_index}.html" previous
+		# alternative classes: page-item page-link
+		generate_html_item_with_link "$1" "$button" "${previous_index}.html" previous
 	else
-		#generate_html_item "$1" "previous page" "#" "page-item disabled" page-link
-		generate_html_item "$1" "previous page" "#" "previous disabled"
+		generate_html_item_with_link "$1" "$button" "#" "previous disabled"
 	fi
 
+	button="<span aria-hidden="true">&uarr;</span> top page"
 	if [ -z "$previous_index" ] || [ -z "$next_page" ]
 	then
-		#generate_html_item "$1" "top page" "index.html" page-item page-link
-		generate_html_item "$1" "top page" "index.html" middle
+		generate_html_item_with_link "$1" "$button" "index.html" top
 	fi
 
+	button="next page <span aria-hidden="true">&rarr;</span>"
 	if [ -n "$next_index" ]
 	then
-		#generate_html_item "$1" "next page" "${next_index}.html" page-item page-link
-		generate_html_item "$1" "next page" "${next_index}.html" next
+		generate_html_item_with_link "$1" "$button" "${next_index}.html" next
 	elif [ "$1" = "./README.md" ]
 	then
-		#generate_html_item "$1" "next page" "1.0.html" page-item page-link
-		generate_html_item "$1" "next page" "1.0.html" next
+		generate_html_item_with_link "$1" "$button" "1.0.html" next
 	else
-		#generate_html_item "$1" "next page" "#" "page-item disabled" page-link
-		generate_html_item "$1" "next page" "#" "next disabled"
+		generate_html_item_with_link "$1" "$button" "#" "next disabled"
 	fi
 
 	generate_html_list "$1" end
-	#generate_html_list "$1" end
 	#generate_html_nav "$1" end
 }
 
@@ -1144,7 +1237,7 @@ function generate_table_of_content {
 				generate_html_list "$1" end
 			else
 				title="${page_index}. ${title}"
-				generate_html_item "$1" "$title" "${page_index}.html"
+				generate_html_item_with_link "$1" "$title" "${page_index}.html"
 			fi
 		fi
 	done < "${hierarchy}/.index"
@@ -1386,7 +1479,7 @@ INCLUDES=false
 ## This is only used for compilable sources
 LINKER=
 LINKER_OPTIONS=
-LINKABLE=
+LINKABLE=true
 
 ## Whether source can be executed either as compiled source or interpretable
 ## Set to false for text files
