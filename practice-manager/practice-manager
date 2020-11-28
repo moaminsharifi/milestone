@@ -1164,7 +1164,8 @@ function generate_quick_access_section {
 	#generate_html_nav "$1" begin "Practice Navigation"
 	generate_html_list "$1" begin pager
 
-	button="<span aria-hidden="true">&larr;</span> previous page"
+	#button="<span aria-hidden="true">&larr;</span> "
+	button="previous page"
 	if [ -n "$previous_index" ]
 	then
 		# alternative classes: page-item page-link
@@ -1173,13 +1174,15 @@ function generate_quick_access_section {
 		generate_html_item_with_link "$1" "$button" "#" "previous disabled"
 	fi
 
-	button="<span aria-hidden="true">&uarr;</span> top page"
+	#button="<span aria-hidden="true">&uarr;</span> "
+	button="top page"
 	if [ -z "$previous_index" ] || [ -z "$next_page" ]
 	then
 		generate_html_item_with_link "$1" "$button" "index.html" top
 	fi
 
-	button="next page <span aria-hidden="true">&rarr;</span>"
+	#button="<span aria-hidden="true">&rarr;</span>"
+	button="next page"
 	if [ -n "$next_index" ]
 	then
 		generate_html_item_with_link "$1" "$button" "${next_index}.html" next
