@@ -1,8 +1,13 @@
 *~
 *.o
 *.bin
+*.zip
 *.toc.txt
 *.output.txt
+*.title.txt
+*.comment.txt
+*.reference.txt
+bootstrap*
 html-files/
 markdown-files/
-bootstrap*
+sample*/

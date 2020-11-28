@@ -1,2 +1,0 @@
-In this practice you will see an example of C programming language that prints
-a number.
