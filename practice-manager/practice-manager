@@ -816,7 +816,7 @@ function index_page {
 
 		if [ "$depth" -gt "$floor" ]
 		then
-			match="$(grep -n "$entry" "${hierarchy}/.index")"
+			match="$(grep -n "^$entry$" "${hierarchy}/.index")"
 			match="${match%%:*}"
 			match="${match%% *}"
 			((match--)) # shift index down because of readme indexes
@@ -894,7 +894,7 @@ function nearest_path {
 
 	while [ "$hierarchy" != "." ]
 	do
-		match="$(grep "$option" "$page" "${hierarchy}/.index")"
+		match="$(grep "$option" "^$page$" "${hierarchy}/.index")"
 
 		if [ "$direction" = "up" ]
 		then
@@ -1584,7 +1584,7 @@ function add_page {
 		echo "location must be a directory: $location" >&2
 		tput sgr0
 		return 1
-	elif [ $(grep -c "$practice_name" "${location}/.index") -gt 0 ]
+	elif [ $(grep -c "^$practice_name$" "${location}/.index") -gt 0 ]
 	then
 		tput bold
 		echo "duplicate practice name: $practice_name" >&2
@@ -1774,10 +1774,10 @@ function swap_chapter {
 	
 	if [ -d "$source" ] && [ -d "$destination" ]
 	then
-		source_index="$(grep -n "${source##*/}" "${source%/*}/.index")"
+		source_index="$(grep -n "^${source##*/}$" "${source%/*}/.index")"
 		source_index="${source_index%%:*}"
 		((source_index--))
-		destination_index="$(grep -n "${destination##*/}" "${destination%/*}/.index")"
+		destination_index="$(grep -n "^${destination##*/}$" "${destination%/*}/.index")"
 		destination_index="${destination_index%%:*}"
 		((destination_index--))
 
