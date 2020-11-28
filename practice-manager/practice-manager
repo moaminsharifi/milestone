@@ -68,7 +68,12 @@ function generate_html_head {
 	local page="${1%.*}"
 	page="${page##*/}"
 	local side="${2:-begin}"
-	local title="${3:-$page}"
+	local title=
+
+	if [ -f "${1%.*}.title.txt" ]
+	then
+		title="$(cat "${1%.*}.title.txt")"
+	fi
 	
 	if [ "$side" = "begin" ]
 	then
@@ -86,7 +91,7 @@ function generate_html_head {
 <!-- ajax -->
 <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/themes/prism-tomorrow.min.css'>
 
-<title>${title}</title>
+<title>${title:-"Milestone Practices"}</title>
 EOF
 	else
 		cat << EOF >> "./html-files/${index}.html"
@@ -985,7 +990,7 @@ function generate_header_section {
 		tput sgr0
 	else
 		title="$(cat "$header")"
-		generate_html_header "$1" 1 "$title"
+		generate_html_header "$1" 2 "$title"
 	fi
 }
 
@@ -1251,7 +1256,7 @@ function generate_index_page {
 	index=index
 
 	generate_html_section "$page" begin
-	generate_html_head "$page" begin Practices
+	generate_html_head "$page" begin
 	generate_html_style "$1" begin
 	generate_html_style "$1" begin nested-list
 	generate_html_style "$1" end
