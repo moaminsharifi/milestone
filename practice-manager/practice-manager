@@ -1410,7 +1410,12 @@ function validate_page {
 
 		if ! [ -f "$page" ]
 		then
-			touch "$page"
+			if [ "$extension" = "config" ]
+			then
+				generate_configuration "$1"
+			else
+				touch "$page"
+			fi
 		fi
 	done
 }
@@ -1434,6 +1439,12 @@ function validate_chapter {
 
 		if [ "$extension" = "config" ]
 		then
+			if ! [ -f "${1%/}/.config" ]
+			then
+				# configuration for chapter
+				generate_configuration "$1"
+			fi
+			# configuration for readme file
 			echo "EXECUTABLE=false" > "$page"
 			echo "SOURCE=false" >> "$page"
 		elif ! [ -f "$page" ]
@@ -1453,6 +1464,14 @@ function validate_chapter {
 	done
 }
 
+# requires path to page
+function extract_configuration {
+	if [ -f "${1%.*}.config" ]
+	then
+		sed -i 's/^#\([^#]\)/\1/' "${1%.*}.config"
+	fi
+}
+
 # requires absolute path to page
 function generate_configuration {
 	local page
@@ -1465,56 +1484,56 @@ function generate_configuration {
 		page="${1%/}/.config"
 	else
 		tput bold
-		echo "invalid location to create config file" >&2
+		echo "invalid location to create config file: $1" >&2
 		tput sgr0
 		return 1
 	fi
 
 	cat << EOF > "$page"
 ## Language name for syntax highlighting
-LANGUAGE=
+#LANGUAGE=
 
 ## Program used to interpret or compile the practice file
-COMPILER=
-COMPILER_OPTIONS=
+#COMPILER=
+#COMPILER_OPTIONS=
 
 ## Whether source should be compiled
 ## Set false for scripting languages
-COMPILABLE=true
+#COMPILABLE=true
 
 ## Whether all sources in one line of .index file should appear in linkage
 ## usually other files are headers only and won't need to be linked to source
-INCLUDES=false
+#INCLUDES=false
 
 ## Whether linker explicitly specified
 ## This is only used for compilable sources
-LINKER=
-LINKER_OPTIONS=
-LINKABLE=true
+#LINKER=
+#LINKER_OPTIONS=
+#LINKABLE=true
 
 ## Whether source can be executed either as compiled source or interpretable
 ## Set to false for text files
-EXECUTABLE=true
+#EXECUTABLE=true
 
 ## Whether different sections should appear
 ## Source is always false for readme files
-COMMENTS=true
-SOURCE=true
+#COMMENTS=true
+#SOURCE=true
 
 ## Following extensions will be generated when new practices are created
-ADDITIONAL_EXTENSIONS="reference.txt comment.txt title.txt"
+#ADDITIONAL_EXTENSIONS="reference.txt comment.txt title.txt"
 
 ## This feature will be used later
-TECHNICAL_LEVEL=
+#TECHNICAL_LEVEL=
 
 ## Whether comments should be verified by .reference.txt files or not.
 ## This feature will be used later
-REFERENCE_VALIDITY=true
+#REFERENCE_VALIDITY=true
 
 ## This feature will be used later
-TERMINATE=false
-TERMINATION_SIGNAL=SIGTERM
-RUNTIME=3
+#TERMINATE=false
+#TERMINATION_SIGNAL=SIGTERM
+#RUNTIME=3
 EOF
 }
 
@@ -1586,6 +1605,7 @@ function add_chapter {
 	if ! [ -f "${location}/.index" ] || [ "$(wc -l < "${location}/.index")" -eq 0 ]
 	then
 		generate_configuration "${location}"
+		extract_configuration "${location}"
 		echo "README.md" > "${location}/.index"
 		validate_chapter "${location}"
 	fi
