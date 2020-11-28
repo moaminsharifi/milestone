@@ -113,6 +113,20 @@ function generate_html_header {
 }
 
 # requires path to page
+# requires header size
+# requires title
+# requires link
+function generate_html_header_with_link {
+	local page="${1%.*}"
+	page="${page##*/}"
+	local size="${2:-1}"
+	local title="${3:-header}"
+	local link="${4:-#}"
+
+	echo "<h${size}><a href="$link">$title</a></h${size}>" >> "./html-files/${index}.html"
+}
+
+# requires path to page
 # optional style names [multiple names allowed]
 function generate_html_style {
 	local page="${1%.*}"
@@ -127,6 +141,12 @@ function generate_html_style {
 			echo "<style>" >> "./html-files/${index}.html"
 
 			cat << 'EOF' >> "./html-files/${index}.html"
+a,
+a:hover,
+a:focus {
+	text-decoration: none;
+}
+
 .pager .top {
 	float: center;
 }
@@ -679,7 +699,7 @@ function compile_source {
 		syntax="${1##*.}"
 	fi
 
-	generate_html_header "$1" 2 "Execution"
+	generate_html_header "$1" 3 "Execution"
 
 	local binary="${1%.*}.bin"
 	local object="${1%.*}.o"
@@ -1012,7 +1032,7 @@ function generate_source_section {
 	fi
 
 	generate_html_breaker "$1"
-	generate_html_header "$1" 2 "Source"
+	generate_html_header "$1" 3 "Source"
 	while [ $# -gt 0 ]
 	do
 		generate_page_name "${1}"
@@ -1088,8 +1108,7 @@ function generate_output_section {
 	local line
 	if [ -f "$input" ]
 	then
-		echo "  <h2>Input</h2>" >> "./html-files/${index}.html"
-
+		generate_html_header "$1" 3 Input
 		generate_html_div "$1" begin
 		while read -r line
 		do
@@ -1098,8 +1117,7 @@ function generate_output_section {
 		generate_html_div "$1" end
 	fi
 
-	echo "  <h2>Output</h2>" >> "./html-files/${index}.html"
-
+	generate_html_header "$1" 3 Output
 	generate_html_div "$1" begin
 	if ! [ -f "$output" ]
 	then
@@ -1211,9 +1229,22 @@ function generate_table_of_content {
 
 	while read -r entry
 	do
-		if [ -d "${hierarchy}/${entry}" ]
+		if [ -d "${hierarchy}/${entry}" ] || [ "$entry" = "README.md" ]
 		then
-			if [ -f "${hierarchy}/${entry%/}/.index" ]
+			if [ "$entry" = "README.md" ]
+			then
+				index_page "${hierarchy}/${entry}"
+				if [ "$page_index" = "0" ]
+				then
+					title="$(cat "${hierarchy}/${entry%.*}.title.txt")"
+					generate_html_header_with_link "$1" 3 "$title" "${page_index}.html"
+					generate_html_breaker "$1"
+					generate_html_header "$1" 4 "Table of Content"
+				else
+					title="${page_index%.0}. $(cat "${hierarchy}/${entry%.*}.title.txt")"
+					generate_html_item_with_link "$1" "$title" "${page_index}.html"
+				fi
+			elif [ -f "${hierarchy}/${entry%/}/.index" ]
 			then
 				generate_html_list "$1" begin
 				generate_table_of_content "${hierarchy}/${entry%/}/.index"
@@ -1236,17 +1267,11 @@ function generate_table_of_content {
 			tput sgr0
 			return 2
 		else
-			title="$(cat "${hierarchy}/${entry%.*}.title.txt")"
+			generate_html_list "$1" begin
 			index_page "${hierarchy}/${entry}"
-			if [ "$page_index" = "0" ]
-			then
-				generate_html_list "$1" begin
-				generate_html_link "$1" "${page_index}.html" "$title"
-				generate_html_list "$1" end
-			else
-				title="${page_index%.0}. ${title}"
-				generate_html_item_with_link "$1" "$title" "${page_index}.html"
-			fi
+			title="${page_index%.0}. $(cat "${hierarchy}/${entry%.*}.title.txt")"
+			generate_html_item_with_link "$1" "$title" "${page_index}.html"
+			generate_html_list "$1" end
 		fi
 	done < "${hierarchy}/.index"
 }
@@ -1258,16 +1283,15 @@ function generate_index_page {
 	generate_html_section "$page" begin
 	generate_html_head "$page" begin
 	generate_html_style "$1" begin
-	generate_html_style "$1" begin nested-list
+	#generate_html_style "$1" begin nested-list
 	generate_html_style "$1" end
 	generate_html_head "$page" end
 	generate_html_body "$page" begin
-	generate_html_header "$1" 2 "Table of Content"
-	generate_html_div "$1" begin table-of-content
+	generate_html_div "$1"
 	generate_table_of_content "./.index"
 	generate_html_div "$1" end
 	generate_html_script "$1" begin
-	generate_html_script "$1" begin nested-list
+	#generate_html_script "$1" begin nested-list
 	generate_html_script "$1" end
 	generate_html_body "$page" end
 	generate_html_section "$page" end
