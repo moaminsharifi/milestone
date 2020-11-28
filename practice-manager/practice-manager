@@ -1298,6 +1298,57 @@ function generate_manuals {
 # functions for specific options
 ###############################################################################
 
+# requires path to page
+function validate_page {
+	local page=
+	local extension=
+
+	for extension in title.txt comment.txt reference.txt
+	do
+		page="${1%.*}.${extension}"
+
+		if ! [ -f "$page" ]
+		then
+			touch "$page"
+		fi
+	done
+}
+
+# requires path to chapter
+function validate_chapter {
+	local page=
+	local extension=
+
+	if ! [ -f "${1%/}/.index" ]
+	then
+		echo "README.md" > "${1%/}/.index"
+	elif [ "$(head -n1 "${1%/}/.index")" != "README.md" ]
+	then
+		sed -i '1i README.md' "${1%/}/.index"
+	fi
+
+	for extension in md config title.txt comment.txt reference.txt
+	do
+		page="${1%/}/README.${extension}"
+
+		if [ "$extension" = "config" ]
+		then
+			echo "EXECUTABLE=false" > "$page"
+			echo "SOURCE=false" >> "$page"
+		elif ! [ -f "$page" ]
+		then
+			if [ "$extension" = "md" ]
+			then
+				echo -e "# Practice Repository\n" > "$page"
+				echo -n "This file is automatically created" >> "$page"
+			   	echo "by Milestone Practice Manager" >> "$page"
+			else
+				touch "$page"
+			fi
+		fi
+	done
+}
+
 # requires absolute path to page
 function generate_configuration {
 	local page
@@ -1398,12 +1449,8 @@ function add_practice {
 
 	# create practice file itself
 	touch "${location}/${practice_name}"
-
-	practice_name="${practice_name%.*}"
-	for extension in comment.txt title.txt reference.txt
-	do
-		touch "${location}/${practice_name}.${extension}"
-	done
+	# create additional files within source
+	validate_page "${location}/${practice_name}"
 }
 
 # requires path to location where chapter will be added
@@ -1434,66 +1481,14 @@ function add_chapter {
 	# if the holding directory itself does not have .index create one!
 	if ! [ -f "${location}/.index" ] || [ "$(wc -l < "${location}/.index")" -eq 0 ]
 	then
-		# create additional extensions
 		generate_configuration "${location}"
-
-		# index
 		echo "README.md" > "${location}/.index"
-		# readme
-		echo -e "# Practice Repository\n" > "${location}/README.md"
-		echo "This file is automatically created by Milestone Practice Manager" >> "${location}/README.md"
-		# additionals
-		for extension in comment.txt title.txt reference.txt
-		do
-			touch "${location}/README.${extension}"
-		done
-		# config
-		echo "EXECUTABLE=false" > "${location}/README.config"
-		echo "SOURCE=false" >> "${location}/README.config"
+		validate_chapter "${location}"
 	fi
 	echo "$chapter_name" >> "${location}/.index"
 
 	mkdir "${location}/${chapter_name}"
-	echo -e "# $chapter_name\n" > "${location}/${chapter_name}/README.md"
-	echo "This file is automatically created by Milestone Practice Manager" >> "${location}/${chapter_name}/README.md"
-	echo "README.md" > "${location}/${chapter_name}/.index"
-
-	for extension in comment.txt title.txt reference.txt
-	do
-		touch "${location}/${chapter_name}/README.${extension}"
-	done
-	echo "EXECUTABLE=false" > "${location}/${chapter_name}/README.config"
-	echo "SOURCE=false" >> "${location}/${chapter_name}/README.config"
-}
-
-function validate_page {
-	local page=
-	local extension=
-
-	for extension in title.txt comment.txt reference.txt
-	do
-		page="${1%.*}.${extension}"
-
-		if ! [ -f "$page" ]
-		then
-			touch "$page"
-		fi
-	done
-}
-
-function validate_chapter {
-	local page=
-	local extension=
-
-	for extension in md title.txt comment.txt reference.txt
-	do
-		page="${1%/}/README.${extension}"
-
-		if ! [ -f "$page" ]
-		then
-			touch "$page"
-		fi
-	done
+	validate_chapter "${location}/${chapter_name}"
 }
 
 # requires relative path to practice location
@@ -1522,7 +1517,10 @@ function remove_practice {
 	then
 		rm "$page."*
 		page="${page##*/}"
-		sed -i "/${page}/d" "${location}/.index"
+		if [ -f "${location}/.index" ]
+		then
+			sed -i "/${page}/d" "${location}/.index"
+		fi
 		echo "practice removed: ${1/$PWD\//}"
 	else
 		tput bold
@@ -1542,7 +1540,10 @@ function remove_chapter {
 	if [ -d "$1" ]
 	then
 		rm -r "$1"
-		sed -i "/$chapter/d" "$location/.index"
+		if [ -f "${location}/.index" ]
+		then
+			sed -i "/${chapter}/d" "${location}/.index"
+		fi
 		echo "chapter removed: ${1/$PWD\//}"
 	else
 		tput bold
@@ -1692,7 +1693,7 @@ function analyze_path {
 	if [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
 	then
-		#validate_chapter "$path"
+		validate_chapter "$path"
 		return 0
 	# if does not have extension and exists but not indexed: check and join
 	elif [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
@@ -1707,7 +1708,7 @@ function analyze_path {
 	elif [ -n "$extension" ] && [ -f "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
 	then
-		#validate_page "$path"
+		validate_page "$path"
 		return 0
 	# if has extension and exists but is not indexed: check and join practice
 	elif [ -n "$extension" ] && [ -f "$path" ] && [ -f "${path%/*}/.index" ]\

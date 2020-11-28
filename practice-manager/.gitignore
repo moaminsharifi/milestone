@@ -7,6 +7,9 @@
 *.title.txt
 *.comment.txt
 *.reference.txt
+*.config
+.index
+.config
 bootstrap*
 html-files/
 markdown-files/
