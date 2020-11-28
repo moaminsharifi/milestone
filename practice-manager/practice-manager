@@ -1399,7 +1399,7 @@ function validate_page {
 	local page=
 	local extension=
 
-	for extension in title.txt comment.txt reference.txt
+	for extension in title.txt comment.txt reference.txt config
 	do
 		page="${1%.*}.${extension}"
 
@@ -1436,8 +1436,11 @@ function validate_chapter {
 			if [ "$extension" = "md" ]
 			then
 				echo -e "# Practice Repository\n" > "$page"
-				echo -n "This file is automatically created" >> "$page"
-			   	echo "by Milestone Practice Manager" >> "$page"
+				echo -n "This file is automatically created by " >> "$page"
+				echo -n "<b>Practice Manager</b> " >> "$page"
+				echo -n "and is part of the " >> "$page"
+			   	echo -n "<a href=\"https://github.com/briansalehi/milestone.git\">" >> "$page"
+				echo -n "<b>Milestone</b></a> project." >> "$page"
 			else
 				touch "$page"
 			fi
