@@ -1361,7 +1361,7 @@ function generate_configuration {
 		page="${1%/}/.config"
 	else
 		tput bold
-		echo "invalid location to create config file"
+		echo "invalid location to create config file" >&2
 		tput sgr0
 		return 1
 	fi
@@ -1415,7 +1415,7 @@ EOF
 }
 
 # requires path to location where practice will be added
-function add_practice {
+function add_page {
 	local location="${1%/*}"
 	local practice_name="${1##*/}"
 
@@ -1492,7 +1492,7 @@ function add_chapter {
 }
 
 # requires relative path to practice location
-function join_practice {
+function join_page {
 	# index page
 	echo "${1##*/}" >> "${1%/*}/.index"
 
@@ -1574,7 +1574,7 @@ function move_chapter {
 	if ! [ -d "$source" ] && [ -d "${destination%/*}" ]
 	then
 		tput bold
-		echo "source or destination does not exist!"
+		echo "source or destination does not exist!" >&2
 		tput sgr0
 		return 1
 	fi
@@ -1592,7 +1592,7 @@ function move_chapter {
 			fi
 		else
 			tput bold
-			echo "failed to move!"
+			echo "failed to move!" >&2
 			tput sgr0
 		fi
 	else
@@ -1607,7 +1607,7 @@ function move_chapter {
 			fi
 		else
 			tput bold
-			echo "failed to move!"
+			echo "failed to move!" >&2
 			tput sgr0
 		fi
 
@@ -1694,7 +1694,6 @@ function analyze_path {
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
 	then
 		validate_chapter "$path"
-		return 0
 	# if does not have extension and exists but not indexed: check and join
 	elif [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 0 ]
@@ -1709,16 +1708,15 @@ function analyze_path {
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
 	then
 		validate_page "$path"
-		return 0
 	# if has extension and exists but is not indexed: check and join practice
 	elif [ -n "$extension" ] && [ -f "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 0 ]
 	then
-		join_practice "$path"
+		join_page "$path"
 	# if has extension but does not exist, create practice page
 	elif [ -n "$extension" ] && ! [ -f "$path" ]
 	then
-		add_practice "$path"
+		add_page "$path"
 	# otherwise, unhandled error
 	else
 		return 1
@@ -1757,10 +1755,6 @@ function analyze_paramters {
 # Analyze Options and Paramters
 ###############################################################################
 
-#-a|--add-practice) add_practice "$PWD/$2"
-#-A|--add-chapter) add_chapter "$PWD/$2"
-#-j|--join-practice) join_practice "$PWD/$2"
-#-J|--join-chapter) join_chapter "$PWD/$2"
 #-r|--rename-practice) rename_practice "$PWD/$2" "$3"; shift 2 ;;
 #-R|--rename-chapter) rename_chapter "$PWD/$2" "$3"; shift 2 ;;
 #-m|--move-practice) move_practice "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
