@@ -1228,6 +1228,7 @@ function generate_table_of_content {
 
 	while read -r entry
 	do
+		entry="${entry%% *}"
 		if [ -d "${hierarchy}/${entry}" ] || [ "$entry" = "README.md" ]
 		then
 			if [ "$entry" = "README.md" ]
@@ -1364,10 +1365,9 @@ function expand_list {
 	local line
 	while read -r line
 	do
-#		members="$(echo "$line" | wc -w)"
 		members="${line//[^\ ]/}"
 
-		if [ "${#members}" -gt 1 ]
+		if [ "${#members}" -gt 0 ]
 		then
 			for file in $line
 			do
