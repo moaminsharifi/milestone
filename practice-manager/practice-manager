@@ -1209,9 +1209,6 @@ function generate_quick_access_section {
 	if [ -n "$next_index" ]
 	then
 		generate_html_item_with_link "$1" "$button" "${next_index}.html" next
-	elif [ "$1" = "./README.md" ]
-	then
-		generate_html_item_with_link "$1" "$button" "1.0.html" next
 	else
 		generate_html_item_with_link "$1" "$button" "#" "next disabled"
 	fi
@@ -1827,9 +1824,19 @@ function remove_files {
 
 # requires path to source and destination
 function move_files {
-	tput bold
-	echo "not implemented yet"
-	tput sgr0
+	local source="$1"
+	local destination="$2"
+
+	# if source is a directory and destination doesn't have extension, locations exist and are the same, destination exists, swap chapter
+	# if source is a directory and destination doesn't have extension, locations exist and are the same, destination doesn't exist, rename chapter
+	# if source is a directory and destination doesn't have extension, locations exist but are not similar, destination exists, move chapter to destination
+	# if source is a directory and destination doesn't have extension, locations exist but are not similar, destination doesn't exist, move chapter to destination location and rename source with destination
+	# otherwise if source is a directory, error invalid destination
+	# if source is a file and destination has extension, locations are similar, destination exists, swap page
+	# if source is a file and destination has extension, locations are similar, but destination doesn't exist, rename page
+	# if source is a file and destination has extension, locations are not similar, destination exists, error cannot overwrite
+	# if source is a file and destination has extension, locations are not similar, destination doesn't exist, move page to destination
+	# otherwise error invalid source
 }
 
 # requires relative path
