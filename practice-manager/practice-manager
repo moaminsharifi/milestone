@@ -685,6 +685,9 @@ function generate_execution_mode {
 # requires absolute path to source
 # option headers and required files
 function compile_source {
+	local source="$1"
+	local location="${1%/*}"
+
 	update_configuration "$1"
 
 	if [ "$EXECUTABLE" != "true" ]
@@ -712,6 +715,7 @@ function compile_source {
 	local execution_command
 	local output_change_time
 	local source_change_time
+	local component=
 
 	if [ "$COMPILABLE" = "true" ] && [ -z "$COMPILER" ]
 	then
@@ -735,11 +739,30 @@ function compile_source {
 		output_change_time=0
 	fi
 
+	# build compilation scheme
+	execution_command=
+	for component in ${COMPILATION_SCHEME:-compiler options object source}
+	do
+		case "$component" in
+			compiler) execution_command+="$COMPILER " ;;
+			options) execution_command+="$COMPILER_OPTIONS " ;;
+			object) execution_command+="$object " ;;
+			source) execution_command+="$source " ;;
+			headers) execution_command+="$headers " ;;
+			*)
+				tput bold
+				echo "invalid scheme component: $component" >&2
+				tput sgr0
+				return 1
+				;;
+		esac
+	done
+	execution_command="${execution_command% }"
+
 	if ! [ -f "$output" ] || [ "$source_change_time" -ge "$output_change_time" ]
 	then
 		if [ "$COMPILABLE" = "true" ]
 		then
-			execution_command="$COMPILER $COMPILER_OPTIONS $object $1"
 			if ! $execution_command
 			then
 				tput bold
@@ -747,7 +770,6 @@ function compile_source {
 				tput sgr0
 				return 1
 			fi
-			generate_execution_mode "$1" compile "$execution_command" "$syntax"
 		else
 			if [ -f "$binary" ]
 			then
@@ -755,17 +777,37 @@ function compile_source {
 			fi
 			ln -s "$PWD/${1/\.\//}" "${binary}"
 		fi
-	else
-		if [ "$COMPILABLE" = "true" ]
-		then
-			execution_command="$COMPILER $COMPILER_OPTIONS ${object##*/} ${1##*/}"
-			generate_execution_mode "$1" compile "$execution_command" "$syntax"
-		fi
 	fi
 
-	execution_command="$LINKER $LINKER_OPTIONS $binary $object $headers"
+	if [ "$COMPILABLE" = "true" ]
+	then
+		execution_command="${execution_command//$location/}"
+		generate_execution_mode "$1" compile "$execution_command" "$syntax"
+	fi
 
-	if [ "$LINKABLE" = "true" ] && ! [ -f "$output" ] || [ "$source_change_time" -ge "$output_change_time" ]
+	# build linkage scheme
+	execution_command=
+	for component in ${LINKAGE_SCHEME:-linker options binary object headers}
+	do
+		case "$component" in
+			linker) execution_command+="$LINKER " ;;
+			options) execution_command+="$LINKER_OPTIONS " ;;
+			object) execution_command+="$object " ;;
+			binary) execution_command+="$binary " ;;
+			headers) execution_command+="$headers " ;;
+			source) execution_command+="$source " ;;
+			*)
+				tput bold
+				echo "invalid scheme component: $component" >&2
+				tput sgr0
+				return 1
+				;;
+		esac
+	done
+	execution_command="${execution_command% }"
+
+	if [ "$LINKABLE" = "true" ] && ! [ -f "$output" ]\
+	   	|| [ "$source_change_time" -ge "$output_change_time" ]
 	then
 		if [ "$COMPILABLE" = "true" ] && [ -n "$LINKER" ]
 		then
@@ -787,14 +829,7 @@ function compile_source {
 
 	if [ "$COMPILABLE" = "true" ] && [ "$LINKABLE" = "true" ]
 	then
-		binary="${binary##*/}"
-		object="${object##*/}"
-		for header in $headers
-		do
-			includes+="$header "
-		done
-
-		execution_command="$LINKER $LINKER_OPTIONS $binary $object $includes"
+		execution_command="${execution_command//$location/}"
 		generate_execution_mode "$1" link "$execution_command" "$syntax"
 	fi
 }
@@ -1520,6 +1555,10 @@ function generate_configuration {
 #COMPILER=
 #COMPILER_OPTIONS=
 
+## Order of statements in compilation command
+## Available statements: compiler, options, object, source, headers
+#COMPILATION_SCHEME="compiler options object source"
+
 ## Whether source should be compiled
 ## Set false for scripting languages
 #COMPILABLE=true
@@ -1528,10 +1567,22 @@ function generate_configuration {
 ## usually other files are headers only and won't need to be linked to source
 #INCLUDES=false
 
+## What is the extension of the object which compiler throws?
+## Default is set to .o
+#OUTPUT_OBJECT=
+
 ## Whether linker explicitly specified
 ## This is only used for compilable sources
 #LINKER=
 #LINKER_OPTIONS=
+
+## Order of statements in linkage command
+## Available statements: linker, options, binary, object, headers, source
+#LINKAGE_SCHEME="linker options binary object headers"
+
+## Whether object should be linked after compilation too
+## Defaut is set to true
+## Set false for scripts
 #LINKABLE=true
 
 ## Whether source can be executed either as compiled source or interpretable
