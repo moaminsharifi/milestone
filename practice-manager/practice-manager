@@ -8,7 +8,8 @@ function usage {
 	echo "Options:"
 	tput sgr0
 	echo
-	echo "  -r <path/to/file>     Remove practice or chapter"
+	echo "  -r <path/to/file>     Remove page or chapter"
+	echo "  -o <path/to/file>     Reorder index of page or chapter"
 	echo "  -f                    Force compile, regenerates all output files"
 	echo
 	tput bold
@@ -23,7 +24,7 @@ function usage {
 	tput setaf 7
 	echo "  $ practice-manager <source> <destination>"
 	tput sgr0
-	echo "                        Moves and/or renames practice and/or chapter"
+	echo "                        Moves and/or renames page and/or chapter"
 	echo
 	tput setaf 7
 	echo "  $ practice-manager <path>"
@@ -1653,7 +1654,7 @@ function join_chapter {
 }
 
 # requires path to page
-function remove_practice {
+function remove_page {
 	local page="${1%.*}"
 	local location="${1%/}"
 	location="${location%/*}"
@@ -1698,23 +1699,81 @@ function remove_chapter {
 	fi
 }
 
-function rename_practice {
-	echo "not implemented yet"
+function rename_page {
+	local source="${1%.*}"
+	local destination="${2%.*}"
+	local match=
+
+	for match in $(find "${source%/*}" -type f -name "${source##*/}*")
+	do
+		mv "$match" "${source%/*}/${destination##*/}${match##*.}"
+	done
+
+	sed -i "s/^${1##*/}$/${2##*/}/" "${1%/*}/.index"
 }
 
 function rename_chapter {
-	echo "not implemented yet"
+	local source="${1%/}"
+	local destination="${2%/}"
+
+	if mv "$source" "$destination"
+	then
+		sed -i "s/^${source##*/}$/${destination##*/}/" "${source%/*}/.index"
+	else
+		tput bold
+		echo "failed to rename chapter: $source" >&2
+		tput sgr0
+		return 1
+	fi
 }
 
-function move_practice {
-	echo "not implemented yet"
+function move_page {
+	local source="$1"
+	local destination="$2"
+
+	if [ -f "$destination" ] && [ -f "${source%/*}/.index" ]
+	then
+		local match=
+		source="${1%.*}"
+		destination="${2%.*}"
+		for match in $(find "${source%/*}" -type f -name "${source##*/}*")
+		do
+			mv "$match" "${destination%/*}/${destination##*/}${match##*.}"
+		done
+
+		sed -i "s/^${1##*/}$/${2##*/}/" "${1%/*}/.index"
+		echo "${2##*/}" >> "${2%/*}/.index"
+
+	elif [ -d "$destination" ] && [ -f "${source%/}/.index" ]
+	then
+		if mv "${source%.*}*" "$destination"
+		then
+			sed -i "/^${source##*/}$/d" "${source%/*}/.index"
+			join_page "${destination%/}/${source##*/}"
+		else
+			tput bold
+			echo "failed to move source: $source" >&2
+			tput sgr0
+			return 1
+		fi
+	else
+		tput bold
+		echo "page not indexed: $source" >&2
+		tput sgr0
+		return 1
+	fi
 }
 
 function move_chapter {
 	local source="${1%/}"
 	local destination="${2%/}"
-	local index="$3"
-	((index++)) # indexing starts from zero for readme files
+	local local_index=
+
+	if [ -n "$3" ]
+	then
+		local_index="$3"
+		((local_index++)) # indexing starts from zero for readme files
+	fi
 
 	if ! [ -d "$source" ] && [ -d "${destination%/*}" ]
 	then
@@ -1729,9 +1788,9 @@ function move_chapter {
 		if mv "$source" "$destination"
 		then
 			sed -i "/^${source##*/}$/d" "${source%/*}/.index"
-			if [ -n "$index" ]
+			if [ -n "$local_index" ]
 			then
-				sed -i "${index}i ${source##*/}" "${destination}/.index"
+				sed -i "${local_index}i ${source##*/}" "${destination}/.index"
 			else
 				echo "${source##*/}" >> "${destination}/.index"
 			fi
@@ -1744,9 +1803,9 @@ function move_chapter {
 		if mv "$source" "$destination"
 		then
 			sed -i "/^${source##*/}$/d" "${source%/*}/.index"
-			if [ -n "$index" ]
+			if [ -n "$local_index" ]
 			then
-				sed -i "${index}i ${destination##*/}" "${destination%/*}/.index"
+				sed -i "${local_index}i ${destination##*/}" "${destination%/*}/.index"
 			else
 				echo "${destination##*/}" >> "${destination%/*}/.index"
 			fi
@@ -1759,8 +1818,33 @@ function move_chapter {
 	fi
 }
 
-function swap_practice {
-	echo "not implemented yet"
+function swap_page {
+	local location="${1%/*}"
+	local source_index="${1}"
+	local destination_index="${2}"
+
+	if [ "${1%/*}" = "${2%/*}" ]
+	then
+		if [ -f "${location}/.index" ]
+		then
+			source_index="$(grep -n "${1##*/}" "${location}/.index")"
+			destination_index="$(grep -n "${2##*/}" "${location}/.index")"
+			sed -i "${destination_index}d" "${location}/.index"
+			sed -i "${destination_index}i ${1##*/}" "${location}/.index"
+			sed -i "${source_index}d" "${location}/.index"
+			sed -i "${source_index}i ${2##*/}" "${location}/.index"
+		else
+			tput bold
+			echo "location not indexed: $location" >&2
+			tput sgr0
+			return 1
+		fi
+	else
+		tput bold
+		echo "locations are not equal: $location" >&2
+		tput sgr0
+		return 1
+	fi
 }
 
 function swap_chapter {
@@ -1816,7 +1900,7 @@ function touch_sources {
 function remove_files {
 	if [ -f "./${1#\.\/}" ]
 	then
-		remove_practice "./${1#\.\/}"
+		remove_page "./${1#\.\/}"
 	else
 		remove_chapter "./${1#\.\/}"
 	fi
@@ -1824,19 +1908,143 @@ function remove_files {
 
 # requires path to source and destination
 function move_files {
-	local source="$1"
-	local destination="$2"
+	local source="${1%/}"
+	local destination="${2%/}"
 
-	# if source is a directory and destination doesn't have extension, locations exist and are the same, destination exists, swap chapter
-	# if source is a directory and destination doesn't have extension, locations exist and are the same, destination doesn't exist, rename chapter
-	# if source is a directory and destination doesn't have extension, locations exist but are not similar, destination exists, move chapter to destination
-	# if source is a directory and destination doesn't have extension, locations exist but are not similar, destination doesn't exist, move chapter to destination location and rename source with destination
-	# otherwise if source is a directory, error invalid destination
-	# if source is a file and destination has extension, locations are similar, destination exists, swap page
-	# if source is a file and destination has extension, locations are similar, but destination doesn't exist, rename page
-	# if source is a file and destination has extension, locations are not similar, destination exists, error cannot overwrite
-	# if source is a file and destination has extension, locations are not similar, destination doesn't exist, move page to destination
+	# source is a directory and destination doesn't have extension,
+	if [ -d "${source}" ] && [ -z "$(sed -n 's/.*\.\([[:alnum:]]*\)$/\1/p' <<< "$destination")" ]
+	then
+		# locations exist
+		if [ -d "${source%/*}" ] && [ -d "${destination%/*}" ]
+		then
+			# locations are similar
+			if [ "${source%/*}" = "${destination%/*}" ]
+			then
+				# destination exists, swap chapter
+				if [ -d "$destination" ]
+				then
+					echo "swapting chapter"
+					swap_chapter "$source" "$destination"
+				# destination does not exist, rename chapter
+				else
+					echo "renaming chapter"
+					rename_chapter "$source" "$destination"
+				fi
+			# locations are not similar
+			else
+				# destination exists, move chapter to destination
+				if [ -d "$destination" ]
+				then
+					echo "moving chapter"
+					move_chapter "$source" "$destination"
+				# destination does not exist, move chapter to destination location and rename source with destination
+				else
+					echo "moving and renaming chapter"
+					move_chapter "$source" "$destination"
+				fi
+			fi
+		else
+			tput bold
+			echo "invalid locations given:" >&2
+			echo "  source: $source" >&2
+			echo "  destination: $destination" >&2
+			tput sgr0
+			return 1
+		fi
+	# source is a file and destination has extension,
+	elif [ -f "$source" ] && [ -n "$(sed -n 's/.*\.\([[:alnum:]]*\)$/\1/p' <<< "$destination")" ]
+	then
+		# locations are similar
+		if [ "${source%/*}" = "${destination%/*}" ]
+		then
+			# destination exists, swap page
+			if [ -f "$destination" ]
+			then
+				echo "swaping page"
+				swap_page "$source" "$destination"
+			# destination doesn't exist, rename page
+			else
+				echo "renaming page"
+				rename_page "$source" "$destination"
+			fi
+		# locations are not similar
+		else
+			# destination exists, error cannot overwrite
+			if [ -f "$destination" ]
+			then
+				tput bold
+				echo "destination exists, cannot overwrite." >&2
+				tput sgr0
+				return 1
+			# destination doesn't exist, move page to destination
+			else
+				echo "moving and renaming page"
+				move_page "$source" "$destination"
+			fi
+		fi
+	# source is a file and destination has extension,
+	elif [ -f "$source" ] && [ -z "$(sed -n 's/.*\.\([[:alnum:]]*\)$/\1/p' <<< "$destination")" ]
+	then
+		# destination directory must exist
+		if [ -d "${destination}" ]
+		then
+			echo "moving page"
+			move_page "$source" "$destination"
+		else
+			tput bold
+			echo "destination directory does not exist: $destination" >&2
+			tput sgr0
+			return 1
+		fi
 	# otherwise error invalid source
+	else
+		tput bold
+		echo "invalid destination: $destination" >&2
+		tput sgr0
+		return 1
+	fi
+}
+
+# requires path
+function reorder_index {
+	local location="./${1/\.\//}"
+	local item=
+	local index_file=
+	local new_index=
+
+	if [ -f "$location" ]
+	then
+		index_file="${location%/*}/.index"
+	elif [ -d "$location" ]
+	then
+		index_file="${location%/*}/.index"
+	else
+		tput bold
+		echo "invalid path: $location" >&2
+		tput sgr0
+		return 1
+	fi
+
+	if [ -f "$index_file" ]
+	then
+		PS3="Replace with: "
+		select item in $(sed '1d' "$index_file" | xargs)
+		do
+			if [ -n "$item" ]
+			then
+				new_index="$REPLY"
+				break
+			fi
+		done
+
+		sed -i "/^${location##*/}$/d" "$index_file"
+		sed -i "${new_index}a ${location##*/}" "$index_file"
+	else
+		tput bold
+		echo "path not indexed: $index_file" >&2
+		tput sgr0
+		return 1
+	fi
 }
 
 # requires relative path
@@ -1892,16 +2100,15 @@ function analyze_paramters {
 			if ! analyze_path "${hierarchy/$PWD/}"
 			then
 				tput bold
-				echo "path analysis failed on: $path" >&2
+				echo "analyzing path failed: $path" >&2
 				tput sgr0
 			fi
 		done
 	else
-		destination="./${destination#\.\/}"
-		if ! move_files "$source" "$destination"
+		if ! move_files "./${1#\.\/}" "./${2#\.\/}"
 		then
 			tput bold
-			echo "cannot move source: $source" >&2
+			echo "operation failed: $source" >&2
 			tput sgr0
 		fi
 	fi
@@ -1909,13 +2116,6 @@ function analyze_paramters {
 
 # Analyze Options and Paramters
 ###############################################################################
-
-#-r|--rename-practice) rename_practice "$PWD/$2" "$3"; shift 2 ;;
-#-R|--rename-chapter) rename_chapter "$PWD/$2" "$3"; shift 2 ;;
-#-m|--move-practice) move_practice "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
-#-M|--move-chapter) move_chapter "$PWD/$2" "$PWD/$3" "$4"; shift 3 ;;
-#-s|--swap-practice) swap_practice "$PWD/$2" "$PWD/$3"; shift 2 ;;
-#-S|--swap-chapter) swap_chapter "$PWD/$2" "$PWD/$3"; shift 2 ;;
 
 if [ $# -eq 0 ]
 then
@@ -1925,7 +2125,8 @@ then
 else
 	case "$1" in
 		-h|--help) usage ;;
-		-r) remove_files "$2" ;;
+		-r) remove_files "${2%/}" ;;
+		-o) reorder_index "${2%/}" ;;
 		-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
 		*)
 			if [ "${1:0:1}" = "-" ]
