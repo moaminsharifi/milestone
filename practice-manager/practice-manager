@@ -310,13 +310,11 @@ EOF
 			nested-list)
 				cat << 'EOF' >> "./html-files/${index}.html"
 $(function() {
-
   $('.list-group-item').on('click', function() {
     $('.glyphicon', this)
       .toggleClass('glyphicon-chevron-right')
       .toggleClass('glyphicon-chevron-down');
   });
-
 });
 EOF
 				;;
@@ -344,6 +342,7 @@ EOF
 <!-- jquery -->
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
 <!-- bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
 <!-- prism js -->
 <script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/prism.min.js'></script>
@@ -406,6 +405,7 @@ EOF
 # requires path to page
 # optional begin/end
 # optional css style name
+# optional multiple attributes
 function generate_html_div {
 	local page="${1%.*}"
 	page="${page##*/}"
@@ -415,7 +415,8 @@ function generate_html_div {
 
 	if [ -n "$css_style" ]
 	then
-		div_tag="<div class=\"${css_style}\">"
+		shift 3
+		div_tag="<div class=\"${css_style}\" $@>"
 	else
 		div_tag="<div>"
 	fi
@@ -442,7 +443,6 @@ function generate_html_breaker {
 	echo "<hr />" >> "./html-files/${index}.html"
 }
 
-# requires path to page
 # requires path to page
 # requires link
 # requires title
@@ -628,6 +628,51 @@ function generate_html_item_with_link {
 	fi
 
 	echo "${tag}${text}${tag_end}" >> "./html-files/${index}.html"
+}
+
+# requires path to page
+# requires begin/end
+function generate_list_group_root {
+	local path="$1"
+	local side="${2:-begin}"
+
+	generate_html_div "$path" "$side" "list-group list-group-root well"
+}
+
+# requires path to page
+# requires begin/end
+# requires id
+function generate_list_group {
+	local path="$1"
+	local side="${2:-begin}"
+	local id="$3"
+
+	generate_html_div "$1" "$side" "list-group collapse" "id=\"${id}\""
+}
+
+# requires local link
+# requires title
+# requires link (not implemented yet)
+function generate_list_group_collapse_item {
+	local link="${1}"
+	local title="${2}"
+
+#<a href="${link/-/.}.html">Visit</a>
+	cat << EOF >> "./html-files/${index}.html"
+<a href="#${link}" class="list-group-item" data-toggle="collapse">
+	<i class="glyphicon glyphicon-chevron-right"></i>${title}
+</a>
+EOF
+}
+
+# requires local link
+# requires title
+# requires link (not implemented yet)
+function generate_list_group_item {
+	local link="${1}"
+	local title="${2}"
+
+	generate_html_link "$1" "$link" "$title" list-group-item
 }
 
 # required functions for managing practice pages
@@ -1240,15 +1285,19 @@ function generate_table_of_content {
 					generate_html_header_with_link "$1" 3 "$title" "${page_index}.html"
 					generate_html_breaker "$1"
 					generate_html_header "$1" 4 "Table of Content"
+					generate_list_group_root "$1" begin
 				else
 					title="${page_index%.0}. $(cat "${hierarchy}/${entry%.*}.title.txt")"
-					generate_html_item_with_link "$1" "$title" "${page_index}.html"
+					#generate_html_item_with_link "$1" "$title" "${page_index}.html"
+					generate_list_group_collapse_item "${page_index//./-}" "$title"
+					generate_list_group "$1" begin "${page_index//./-}"
 				fi
 			elif [ -f "${hierarchy}/${entry%/}/.index" ]
 			then
-				generate_html_list "$1" begin
+				#generate_html_list "$1" begin
 				generate_table_of_content "${hierarchy}/${entry%/}/.index"
-				generate_html_list "$1" end
+				generate_list_group "$1" end
+				#generate_html_list "$1" end
 			else
 				tput bold
 				echo "broken hierarchy in ${hierarchy}/${entry%/}/.index"
@@ -1267,11 +1316,12 @@ function generate_table_of_content {
 			tput sgr0
 			return 2
 		else
-			generate_html_list "$1" begin
+			#generate_html_list "$1" begin
 			index_page "${hierarchy}/${entry}"
 			title="${page_index%.0}. $(cat "${hierarchy}/${entry%.*}.title.txt")"
-			generate_html_item_with_link "$1" "$title" "${page_index}.html"
-			generate_html_list "$1" end
+			generate_list_group_item "${page_index}.html" "$title"
+			#generate_html_item_with_link "$1" "$title" "${page_index}.html"
+			#generate_html_list "$1" end
 		fi
 	done < "${hierarchy}/.index"
 }
@@ -1282,17 +1332,18 @@ function generate_index_page {
 
 	generate_html_section "$page" begin
 	generate_html_head "$page" begin
-	generate_html_style "$1" begin
-	#generate_html_style "$1" begin nested-list
-	generate_html_style "$1" end
+	generate_html_style "$page" begin
+	generate_html_style "$page" begin nested-list
+	generate_html_style "$page" end
 	generate_html_head "$page" end
 	generate_html_body "$page" begin
-	generate_html_div "$1"
+	generate_html_div "$page"
 	generate_table_of_content "./.index"
-	generate_html_div "$1" end
-	generate_html_script "$1" begin
-	#generate_html_script "$1" begin nested-list
-	generate_html_script "$1" end
+	generate_list_group_root "$1" end
+	generate_html_div "$page" end
+	generate_html_script "$page" begin
+	generate_html_script "$page" begin nested-list
+	generate_html_script "$page" end
 	generate_html_body "$page" end
 	generate_html_section "$page" end
 }
