@@ -703,7 +703,7 @@ function compile_source {
 	generate_html_header "$1" 3 "Execution"
 
 	local binary="${1%.*}.bin"
-	local object="${1%.*}.o"
+	local object="${1%.*}.${OUTPUT_OBJECT#.}"
 	local headers="$@"
 	headers="${headers/$1 }"
 	local includes=
