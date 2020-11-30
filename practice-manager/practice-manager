@@ -762,6 +762,7 @@ function compile_source {
 				;;
 		esac
 	done
+	execution_command="${execution_command//  / }"
 	execution_command="${execution_command% }"
 
 	if ! [ -f "$output" ] || [ "$source_change_time" -ge "$output_change_time" ]
@@ -810,6 +811,7 @@ function compile_source {
 				;;
 		esac
 	done
+	execution_command="${execution_command//  / }"
 	execution_command="${execution_command% }"
 
 	if [ "$LINKABLE" = "true" ] && ! [ -f "$output" ]\
@@ -1155,6 +1157,7 @@ function generate_output_section {
 				;;
 		esac
 	done
+	execution_command="${execution_command//  / }"
 	running_command="${running_command% }"
 
 	generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
