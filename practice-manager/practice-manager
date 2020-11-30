@@ -2201,6 +2201,7 @@ function list_index {
 # requires relative path
 function analyze_path {
 	local path="${1%/}"
+	local peek="${2:-false}"
 	local extension="$(echo "$path" | sed -n 's/.*\.\([a-zA-Z]*\)$/\1/p')"
 
 	# if does not have extension and exists and indexed: check all files within
@@ -2208,7 +2209,10 @@ function analyze_path {
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
 	then
 		validate_chapter "$path"
-		list_index "$path"
+		if [ "$peek" = "true" ]
+		then
+			list_index "$path"
+		fi
 	# if does not have extension and exists but not indexed: check and join
 	elif [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 0 ]
@@ -2246,10 +2250,20 @@ function analyze_paramters {
 	then
 		local hierarchy="."
 		local entry=
+		local peek=
 		for entry in ${source//\//$'\n'}
 		do
 			hierarchy+="/$entry"
-			if ! analyze_path "${hierarchy/$PWD/}"
+
+			# peek index of chapter if nothing happens
+			if [ "${hierarchy}" = "./${1%/}" ]
+			then
+				peek=true
+			else
+				peek=false
+			fi
+
+			if ! analyze_path "${hierarchy/$PWD/}" "$peek"
 			then
 				tput bold
 				echo "analyzing path failed: $path" >&2
