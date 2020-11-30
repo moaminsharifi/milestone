@@ -759,6 +759,14 @@ function generate_list_group_item {
 # required functions for managing practice pages
 ###############################################################################
 
+# requires path to page
+function extract_configuration {
+	if [ -f "${1%.*}.config" ]
+	then
+		sed -i 's/^#\([^#]\)/\1/' "${1%.*}.config"
+	fi
+}
+
 # requires absolute path to page
 function generate_configuration {
 	local page
@@ -1812,14 +1820,6 @@ function generate_manuals {
 # functions for specific options
 ###############################################################################
 
-# requires path to page
-function extract_configuration {
-	if [ -f "${1%.*}.config" ]
-	then
-		sed -i 's/^#\([^#]\)/\1/' "${1%.*}.config"
-	fi
-}
-
 # requires path to location where practice will be added
 function add_page {
 	local location="${1%/*}"
@@ -2409,6 +2409,8 @@ then
 		tput bold
 		echo "validating repository for new configuration..." >&2
 		tput sgr0
+		regenerate_configuration "./.config"
+		extract_configuration "./.config"
 		if ! validate_configuration "./.index"
 		then
 			echo "configuration failed"
