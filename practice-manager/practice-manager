@@ -1,5 +1,93 @@
 #!/usr/bin/env bash
 
+main_configuration=\
+"## Language name for syntax highlighting
+## Only specify names supported by prism.js
+## e.g. c cpp java python bash
+#LANGUAGE=
+
+## Whether source can be executed either as compiled source or interpretable
+## Set to false for text files
+#EXECUTABLE=true
+
+## Program used to interpret or compile the practice file
+#COMPILER=
+#COMPILER_OPTIONS=
+
+## Order of statements in compilation command
+## Available statements: compiler, options, object, source, headers
+#COMPILATION_SCHEME=\"compiler options object source\"
+
+## Whether source should be compiled
+## Set false for scripting languages
+#COMPILABLE=true
+
+## Whether all sources in one line of .index file should appear in linkage
+## usually other files are headers only and won't need to be linked to source
+#INCLUDES=false
+
+## What is the extension of the object which compiler throws?
+## Default is set to .o
+#OUTPUT_OBJECT=
+
+## Whether linker explicitly specified
+## This is only used for compilable sources
+#LINKER=
+#LINKER_OPTIONS=
+
+## Order of statements in linkage command
+## Available statements: linker, options, binary, object, headers, source,
+##   location, page
+#LINKAGE_SCHEME=\"linker options binary object headers\"
+
+## Whether object should be linked after compilation too
+## Defaut is set to true
+## Set false for scripts
+#LINKABLE=true
+
+## Wether generated output can run as an executable
+#RUNNABLE=true
+#RUNNING_OPTIONS=
+
+## Order of statements in running command
+## Available statements: compiler, linker, options, binary, object, headers,
+##   source, location, page
+#RUNNING_SCHEME=\"binary options\"
+
+## Whether program should be run in the background
+## Suitable for servers and services which need to wait for clients to compile
+## and respond
+## Rationally, servers should be compiled and executed first, then clients
+#RUN_IN_BACKGROUND=false
+
+## Terminate program in RUNTIME seconds after exection
+## Suitable for servers which will not exit after execution
+#TERMINATE=false
+#TERMINATION_SIGNAL=SIGTERM
+#RUNTIME=3
+
+## Whether different sections should appear
+## Source is always false for readme files in order to prevent text duplication
+## Suitable for text sources which cannot be compiled
+#TITLE=true
+#COMMENTS=true
+#SOURCE=true
+#EXECUTION=true
+#OUTPUT=true
+#INPUT=true
+#REFERENCE=true
+
+## Whether comments should be verified by .reference.txt files or not.
+## This feature will be used in the future
+#REFERENCE_VALIDITY=false
+
+## Specify the hardness of this chapter
+## This feature will be used in Milestone technical courses and tutorials
+#TECHNICAL_LEVEL=
+
+## DO NOT EDIT!
+#VALIDATION_ID=0"
+
 # terminates script executaion after call
 function usage {
 	echo "Practice Page Manager"
@@ -671,6 +759,164 @@ function generate_list_group_item {
 # required functions for managing practice pages
 ###############################################################################
 
+# requires absolute path to page
+function generate_configuration {
+	local page
+
+	if [ -f "$1" ]
+	then
+		page="${1%.*}.config"
+	elif [ -d "$1" ]
+	then
+		page="${1%/}/.config"
+	else
+		tput bold
+		echo "invalid location to create config file: $1" >&2
+		tput sgr0
+		return 1
+	fi
+
+	cat << EOF > "$page"
+$main_configuration
+EOF
+}
+
+# requires path to config
+function regenerate_configuration {
+	if [ "${1##*.}" != "config" ]
+	then
+		tput bold
+		echo "invalid configuration to regenerate"
+		tput sgr0
+		return 1
+	fi
+
+	local line=
+	local config=
+	local value=
+	local target_config="$(grep '^[^# ]' "$1")"
+
+	generate_configuration "$1"
+
+	while read -r line
+	do
+		config="${line%%=*}"
+		value="${line#*=}"
+		value="${value%%#*}"
+		sed -i "/^#${config}=/s/^#\(${config}\)=.*/\1=${value}/" "$1"
+	done <<< "$target_config"
+}
+
+# requires path to page
+function validate_page {
+	local page=
+	local extension=
+
+	for extension in title.txt comment.txt reference.txt config
+	do
+		page="${1%.*}.${extension}"
+
+		if ! [ -f "$page" ]
+		then
+			if [ "$extension" = "config" ]
+			then
+				generate_configuration "$1"
+			else
+				touch "$page"
+			fi
+		else
+			if [ "$extension" = "config" ]
+			then
+				regenerate_configuration "$page"
+			fi
+		fi
+	done
+}
+
+# requires path to chapter
+function validate_chapter {
+	local page=
+	local extension=
+
+	if ! [ -f "${1%/}/.index" ]
+	then
+		echo "README.md" > "${1%/}/.index"
+	elif [ "$(head -n1 "${1%/}/.index")" != "README.md" ]
+	then
+		sed -i -e '/README.md/d' -e '1i README.md' "${1%/}/.index"
+	fi
+
+	regenerate_configuration "${1%/}/.config"
+
+	for extension in md config title.txt comment.txt reference.txt
+	do
+		page="${1%/}/README.${extension}"
+
+		if [ "$extension" = "config" ]
+		then
+			if ! [ -f "${1%/}/.config" ]
+			then
+				# configuration for chapter
+				generate_configuration "$1"
+			fi
+			# configuration for readme file
+			echo "EXECUTABLE=false" > "$page"
+			echo "SOURCE=false" >> "$page"
+			echo "INPUT=false" >> "$page"
+			echo "OUTPUT=false" >> "$page"
+		elif ! [ -f "$page" ]
+		then
+			if [ "$extension" = "md" ]
+			then
+				echo -e "# Practice Repository\n" > "$page"
+				echo -n "This file is automatically created by " >> "$page"
+				echo -n "<b>Practice Manager</b> " >> "$page"
+				echo -n "and is part of the " >> "$page"
+			   	echo -n "<a href=\"https://github.com/briansalehi/milestone.git\">" >> "$page"
+				echo -n "<b>Milestone</b></a> project." >> "$page"
+			else
+				touch "$page"
+			fi
+		fi
+	done
+}
+
+# requires relative path to list
+function validate_configuration {
+	local directory="${1%/*}"
+	local members
+	local line
+	local file
+
+	if ! [ -f "$1" ]
+	then
+		tput bold
+		echo "unindexed directory: $directory/" >&2
+		tput sgr0
+		return 1
+	fi
+
+	while read -r line
+	do
+		line="${line%% *}"
+		if [ -f "$directory/$line" ]
+		then
+			validate_page "$directory/$line"
+		elif [ -d "$directory/$line" ]
+		then
+			validate_chapter "$directory/$line"
+			if ! validate_configuration "$directory/$line/.index"
+			then
+				return 1
+			fi
+		else
+			tput bold
+			echo "missing entry: $directory/$line" >&2
+			tput sgr0
+		fi
+	done < "$1"
+}
+
 # requires absolute path to source to configure corresponding variables
 function update_configuration {
 	local directory
@@ -731,7 +977,7 @@ function compile_source {
 
 	if [ "$EXECUTABLE" != "true" ]
 	then
-		return 2
+		return 1
 	fi
 
 	local syntax=
@@ -810,6 +1056,7 @@ function compile_source {
 			then
 				tput bold
 				echo "compilation error: $1" >&2
+				echo "  command: $execution_command" >&2
 				tput sgr0
 			fi
 		else
@@ -860,6 +1107,7 @@ function compile_source {
 			then
 				tput bold
 				echo "linkage error for: $1" >&2
+				echo "  command: $execution_command" >&2
 				tput sgr0
 			fi
 		elif [ "$LINKABLE" = "true" ] && [ -z "$LINKER" ]
@@ -1017,6 +1265,78 @@ function nearest_path {
 	fi
 }
 
+# requies process id to kill
+# requies seconds to wait before strike
+function process_kill {
+	sleep "$2"
+	kill -SIGTERM "$1"
+}
+
+# requires path to page
+function run_program {
+	local source="$1"
+	OUTPUT_OBJECT="${OUTPUT_OBJECT:-o}"
+	local object="${1%.*}.${OUTPUT_OBJECT#.}"
+	local headers="$@"
+	headers="${headers/$1 }"
+	local output="${1%.*}.output.txt"
+	local location="${1%/*}"
+	local component=
+
+	if [ "$RUNNABLE" != "true" ]
+	then
+		return 0
+	fi
+
+	update_configuration "$1"
+
+	# build running scheme
+	local running_command=
+	for component in ${RUNNING_SCHEME:-binary}
+	do
+		case "$component" in
+			compiler) running_command+="$COMPILER " ;;
+			linker) running_command+="$LINKER " ;;
+			options) running_command+="$RUNNING_OPTIONS " ;;
+			object) running_command+="$object " ;;
+			source) running_command+="$source " ;;
+			binary) running_command+="$binary " ;;
+			headers) running_command+="$headers " ;;
+			page) running_command+="$page " ;;
+			location) running_command+="$location " ;;
+			*)
+				tput bold
+				echo "invalid scheme component: $component" >&2
+				tput sgr0
+				return 1
+				;;
+		esac
+	done
+	execution_command="${execution_command//  / }"
+	running_command="${running_command% }"
+
+	generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
+
+	if [ -f "$input" ]
+	then
+		if ! $running_command < "$input" > "$output"
+		then
+			tput bold
+			echo "running program failed: $source" >&2
+			echo "command: $running_command" >&2
+			tput sgr0
+		fi
+	else
+		if ! $running_command > "$output"
+		then
+			tput bold
+			echo "running program failed: $source" >&2
+			echo "command: $running_command" >&2
+			tput sgr0
+		fi
+	fi
+}
+
 # functions to generate html pages
 ###############################################################################
 
@@ -1152,90 +1472,51 @@ function generate_output_section {
 	local output="$page.output.txt"
 	local input="$page.input.txt"
 	page="${page##*/}"
+	local line
 
 	if ! compile_source $@
 	then
 		return 1
 	fi
 
-	if [ "$RUNNABLE" != "true" ]
+	if ! run_program
 	then
-		return 0
+		return 1
 	fi
 
-	local source="$1"
-	OUTPUT_OBJECT="${OUTPUT_OBJECT:-o}"
-	local object="${1%.*}.${OUTPUT_OBJECT#.}"
-	local headers="$@"
-	headers="${headers/$1 }"
-	local output="${1%.*}.output.txt"
-	local location="${1%/*}"
-	local component=
-
-	# build running scheme
-	local running_command=
-	for component in ${RUNNING_SCHEME:-binary}
-	do
-		case "$component" in
-			compiler) running_command+="$COMPILER " ;;
-			linker) running_command+="$LINKER " ;;
-			options) running_command+="$RUNNING_OPTIONS " ;;
-			object) running_command+="$object " ;;
-			source) running_commanrunning_command+="$source " ;;
-			binary) running_command+="$binary " ;;
-			headers) running_command+="$headers " ;;
-			page) running_command+="$page " ;;
-			location) running_command+="$location " ;;
-			*)
-				tput bold
-				echo "invalid scheme component: $component" >&2
-				tput sgr0
-				return 1
-				;;
-		esac
-	done
-	execution_command="${execution_command//  / }"
-	running_command="${running_command% }"
-
-	generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
-
-	if [ -f "$input" ]
-	then
-		$running_command < "$input" > "$output"
-	else
-		$running_command > "$output"
-	fi
-	if [ "$(wc -l < "$output")" -eq 0 ] && [ "$(wc -m < "$output")" -gt 0 ]
-	then
-		echo >> "$output"
-	fi
-
-	local line
-	if [ -f "$input" ]
+	if [ "${INPUT:-true}" = "true" ] && [ -f "$input" ]
 	then
 		generate_html_header "$1" 3 Input
 		generate_html_div "$1" begin
 		while read -r line
 		do
-			echo "   $line" >> "./html-files/${index}.html"
+			echo "$line" >> "./html-files/${index}.html"
 		done < "$input"
 		generate_html_div "$1" end
 	fi
 
-	generate_html_header "$1" 3 Output
-	generate_html_div "$1" begin
-	if ! [ -f "$output" ]
+	if [ "${OUTPUT:-true}" = "true" ]
 	then
-		tput bold
-		echo "output file not found: $output" >&2
-		tput sgr0
-	else
-		while read -r line
-		do
-			echo "   $line" >> "./html-files/${index}.html"
-		done < "$output"
+		generate_html_header "$1" 3 Output
+		generate_html_div "$1" begin
+		if [ -f "$output" ]
+		then
+			if [ "$(wc -l < "$output")" -eq 0 ] && [ "$(wc -m < "$output")" -gt 0 ]
+			then
+				echo >> "$output"
+			fi
+
+			while read -r line
+			do
+				echo "$line" >> "./html-files/${index}.html"
+			done < "$output"
+		else
+			tput bold
+			echo "output file not found: $output" >&2
+			tput sgr0
+		fi
+		generate_html_div "$1" end
 	fi
-	generate_html_div "$1" end
 }
 
 # requires absolute path to page
@@ -1532,167 +1813,11 @@ function generate_manuals {
 ###############################################################################
 
 # requires path to page
-function validate_page {
-	local page=
-	local extension=
-
-	for extension in title.txt comment.txt reference.txt config
-	do
-		page="${1%.*}.${extension}"
-
-		if ! [ -f "$page" ]
-		then
-			if [ "$extension" = "config" ]
-			then
-				generate_configuration "$1"
-			else
-				touch "$page"
-			fi
-		fi
-	done
-}
-
-# requires path to chapter
-function validate_chapter {
-	local page=
-	local extension=
-
-	if ! [ -f "${1%/}/.index" ]
-	then
-		echo "README.md" > "${1%/}/.index"
-	elif [ "$(head -n1 "${1%/}/.index")" != "README.md" ]
-	then
-		sed -i '1i README.md' "${1%/}/.index"
-	fi
-
-	for extension in md config title.txt comment.txt reference.txt
-	do
-		page="${1%/}/README.${extension}"
-
-		if [ "$extension" = "config" ]
-		then
-			if ! [ -f "${1%/}/.config" ]
-			then
-				# configuration for chapter
-				generate_configuration "$1"
-			fi
-			# configuration for readme file
-			echo "EXECUTABLE=false" > "$page"
-			echo "SOURCE=false" >> "$page"
-		elif ! [ -f "$page" ]
-		then
-			if [ "$extension" = "md" ]
-			then
-				echo -e "# Practice Repository\n" > "$page"
-				echo -n "This file is automatically created by " >> "$page"
-				echo -n "<b>Practice Manager</b> " >> "$page"
-				echo -n "and is part of the " >> "$page"
-			   	echo -n "<a href=\"https://github.com/briansalehi/milestone.git\">" >> "$page"
-				echo -n "<b>Milestone</b></a> project." >> "$page"
-			else
-				touch "$page"
-			fi
-		fi
-	done
-}
-
-# requires path to page
 function extract_configuration {
 	if [ -f "${1%.*}.config" ]
 	then
 		sed -i 's/^#\([^#]\)/\1/' "${1%.*}.config"
 	fi
-}
-
-# requires absolute path to page
-function generate_configuration {
-	local page
-
-	if [ -f "$1" ]
-	then
-		page="${1%.*}.config"
-	elif [ -d "$1" ]
-	then
-		page="${1%/}/.config"
-	else
-		tput bold
-		echo "invalid location to create config file: $1" >&2
-		tput sgr0
-		return 1
-	fi
-
-	cat << EOF > "$page"
-## Language name for syntax highlighting
-## Only specify names supported by prism.js
-## e.g. c cpp java python bash
-#LANGUAGE=
-
-## Program used to interpret or compile the practice file
-#COMPILER=
-#COMPILER_OPTIONS=
-
-## Order of statements in compilation command
-## Available statements: compiler, options, object, source, headers
-#COMPILATION_SCHEME="compiler options object source"
-
-## Whether source should be compiled
-## Set false for scripting languages
-#COMPILABLE=true
-
-## Whether all sources in one line of .index file should appear in linkage
-## usually other files are headers only and won't need to be linked to source
-#INCLUDES=false
-
-## What is the extension of the object which compiler throws?
-## Default is set to .o
-#OUTPUT_OBJECT=
-
-## Whether linker explicitly specified
-## This is only used for compilable sources
-#LINKER=
-#LINKER_OPTIONS=
-
-## Order of statements in linkage command
-## Available statements: linker, options, binary, object, headers, source, location, page
-#LINKAGE_SCHEME="linker options binary object headers"
-
-## Whether object should be linked after compilation too
-## Defaut is set to true
-## Set false for scripts
-#LINKABLE=true
-
-## Whether source can be executed either as compiled source or interpretable
-## Set to false for text files
-#EXECUTABLE=true
-
-## Wether generated output can run as an executable
-#RUNNABLE=true
-#RUNNING_OPTIONS=
-
-## Order of statements in running command
-## Available statements: compiler, linker, options, binary, object, headers, source, location, page
-#RUNNING_SCHEME="binary"
-
-## Whether different sections should appear
-## Source is always false for readme files
-#COMMENTS=true
-#SOURCE=true
-
-## Following extensions will be generated when new practices are created
-#ADDITIONAL_EXTENSIONS="config reference.txt comment.txt title.txt"
-
-## This feature will be used later
-#TECHNICAL_LEVEL=
-
-## Whether comments should be verified by .reference.txt files or not.
-## This feature will be used later
-#REFERENCE_VALIDITY=true
-
-## This feature will be used later
-#TERMINATE=false
-#TERMINATION_SIGNAL=SIGTERM
-#RUNTIME=3
-EOF
 }
 
 # requires path to location where practice will be added
@@ -2274,6 +2399,25 @@ function analyze_paramters {
 
 # Analyze Options and Paramters
 ###############################################################################
+
+if [ -f ./.config ]
+then
+	validation_check=202011302015
+	source ./.config
+	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
+	then
+		tput bold
+		echo "validating repository for new configuration..." >&2
+		tput sgr0
+		if ! validate_configuration "./.index"
+		then
+			echo "configuration failed"
+			return 1
+		fi
+		sed -i "s/^\(VALIDATION_ID=\)[0-9]*$/\1${validation_check}/" ./.config
+		echo "configuration complete, continuing..."
+	fi
+fi
 
 if [ $# -eq 0 ]
 then
