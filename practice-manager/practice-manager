@@ -686,6 +686,8 @@ function generate_execution_mode {
 # option headers and required files
 function compile_source {
 	local source="$1"
+	local page="${1%.*}"
+	page="${page##*/}"
 	local location="${1%/*}"
 
 	update_configuration "$1"
@@ -748,7 +750,10 @@ function compile_source {
 			options) execution_command+="$COMPILER_OPTIONS " ;;
 			object) execution_command+="$object " ;;
 			source) execution_command+="$source " ;;
+			binary) execution_command+="$binary " ;;
 			headers) execution_command+="$headers " ;;
+			page) execution_command+="$page " ;;
+			location) execution_command+="$location " ;;
 			*)
 				tput bold
 				echo "invalid scheme component: $component" >&2
@@ -796,6 +801,8 @@ function compile_source {
 			binary) execution_command+="$binary " ;;
 			headers) execution_command+="$headers " ;;
 			source) execution_command+="$source " ;;
+			page) execution_command+="$page " ;;
+			location) execution_command+="$location " ;;
 			*)
 				tput bold
 				echo "invalid scheme component: $component" >&2
@@ -809,7 +816,7 @@ function compile_source {
 	if [ "$LINKABLE" = "true" ] && ! [ -f "$output" ]\
 	   	|| [ "$source_change_time" -ge "$output_change_time" ]
 	then
-		if [ "$COMPILABLE" = "true" ] && [ -n "$LINKER" ]
+		if [ "$LINKABLE" = "true" ] && [ -n "$LINKER" ]
 		then
 			if ! $execution_command
 			then
@@ -818,7 +825,7 @@ function compile_source {
 				tput sgr0
 				return 1
 			fi
-		elif [ "$COMPILABLE" = "true" ] && [ -z "$LINKER" ]
+		elif [ "$LINKABLE" = "true" ] && [ -z "$LINKER" ]
 		then
 			tput bold
 			echo "linker not specified for: $1" >&2
@@ -827,7 +834,7 @@ function compile_source {
 		fi
 	fi
 
-	if [ "$COMPILABLE" = "true" ] && [ "$LINKABLE" = "true" ]
+	if [ "$LINKABLE" = "true" ]
 	then
 		execution_command="${execution_command//$location/}"
 		generate_execution_mode "$1" link "$execution_command" "$syntax"
@@ -853,7 +860,7 @@ function index_page {
 
 		if [ "$depth" -gt "$floor" ]
 		then
-			match="$(grep -n "^$entry$" "${hierarchy}/.index")"
+			match="$(grep -n "^$entry" "${hierarchy}/.index")"
 			match="${match%%:*}"
 			match="${match%% *}"
 			((match--)) # shift index down because of readme indexes
@@ -931,7 +938,7 @@ function nearest_path {
 
 	while [ "$hierarchy" != "." ]
 	do
-		match="$(grep "$option" "^$page$" "${hierarchy}/.index")"
+		match="$(grep "$option" "^$page" "${hierarchy}/.index")"
 
 		if [ "$direction" = "up" ]
 		then
@@ -1114,33 +1121,56 @@ function generate_output_section {
 		return 1
 	fi
 
-	if ! [ -f "$binary" ]
+	if [ "$RUNNABLE" != "true" ]
 	then
-		tput bold
-		echo "binary file not generated: $binary" >&2
-		tput sgr0
-		return 1
+		return 0
 	fi
 
-	if [ "$COMPILABLE" = "true" ]
+	local source="$1"
+	OUTPUT_OBJECT="${OUTPUT_OBJECT:-o}"
+	local object="${1%.*}.${OUTPUT_OBJECT#.}"
+	local headers="$@"
+	headers="${headers/$1 }"
+	local output="${1%.*}.output.txt"
+	local location="${1%/*}"
+	local component=
+
+	# build running scheme
+	local running_command=
+	for component in ${RUNNING_SCHEME:-binary}
+	do
+		case "$component" in
+			compiler) running_command+="$COMPILER " ;;
+			linker) running_command+="$LINKER " ;;
+			options) running_command+="$RUNNING_OPTIONS " ;;
+			object) running_command+="$object " ;;
+			source) running_commanrunning_command+="$source " ;;
+			binary) running_command+="$binary " ;;
+			headers) running_command+="$headers " ;;
+			page) running_command+="$page " ;;
+			location) running_command+="$location " ;;
+			*)
+				tput bold
+				echo "invalid scheme component: $component" >&2
+				tput sgr0
+				return 1
+				;;
+		esac
+	done
+	running_command="${running_command% }"
+
+	generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
+
+	if [ -f "$input" ]
 	then
-		if [ -f "$input" ]
-		then
-			"$binary" < "$input" > "$output"
-		else
-			"$binary" > "$output"
-		fi
-		generate_execution_mode "$1" run "./${binary##*/}" "$LANGUAGE"
+		$running_command < "$input" > "$output"
 	else
-		if [ -f "$input" ]
-		then
-			"$COMPILER" "$binary" < "$input" > "$output"
-		else
-			"$COMPILER" "$binary" > "$output"
-		fi
-		generate_execution_mode "$1" run "$COMPILER ${1##*/}" "$LANGUAGE"
+		$running_command > "$output"
 	fi
-	echo >> "$output"
+	if [ "$(wc -l < "$output")" -eq 0 ] && [ "$(wc -m < "$output")" -gt 0 ]
+	then
+		echo >> "$output"
+	fi
 
 	local line
 	if [ -f "$input" ]
@@ -1549,6 +1579,8 @@ function generate_configuration {
 
 	cat << EOF > "$page"
 ## Language name for syntax highlighting
+## Only specify names supported by prism.js
+## e.g. c cpp java python bash
 #LANGUAGE=
 
 ## Program used to interpret or compile the practice file
@@ -1577,7 +1609,7 @@ function generate_configuration {
 #LINKER_OPTIONS=
 
 ## Order of statements in linkage command
-## Available statements: linker, options, binary, object, headers, source
+## Available statements: linker, options, binary, object, headers, source, location, page
 #LINKAGE_SCHEME="linker options binary object headers"
 
 ## Whether object should be linked after compilation too
@@ -1589,13 +1621,21 @@ function generate_configuration {
 ## Set to false for text files
 #EXECUTABLE=true
 
+## Wether generated output can run as an executable
+#RUNNABLE=true
+#RUNNING_OPTIONS=
+
+## Order of statements in running command
+## Available statements: compiler, linker, options, binary, object, headers, source, location, page
+#RUNNING_SCHEME="binary"
+
 ## Whether different sections should appear
 ## Source is always false for readme files
 #COMMENTS=true
 #SOURCE=true
 
 ## Following extensions will be generated when new practices are created
-#ADDITIONAL_EXTENSIONS="reference.txt comment.txt title.txt"
+#ADDITIONAL_EXTENSIONS="config reference.txt comment.txt title.txt"
 
 ## This feature will be used later
 #TECHNICAL_LEVEL=
