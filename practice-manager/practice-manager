@@ -29,15 +29,7 @@ function usage {
 	tput setaf 7
 	echo "  $ practice-manager <path>"
 	tput sgr0
-	echo "                        Creates new chapter if there is no extension"
-	echo "                        at the end of path (e.g. python/chapter1)"
-	echo "                        or creates a practice page if extension"
-	echo "                        given (e.g. python/chapter1/sample.py)"
-	echo "                        If file already exists but not indexed,"
-	echo "                        it will be joined and indexed in practices."
-	echo "                        This is useful if you already have practice"
-	echo "                        file from the past and have not joined them"
-	echo "                        yet. (e.g. python/chapter1/old.py)"
+	echo "                        Create chapter or page, or just peek inside"
 }
 
 # html line generators
