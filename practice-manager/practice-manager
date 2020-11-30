@@ -773,7 +773,6 @@ function compile_source {
 				tput bold
 				echo "compilation error: $1" >&2
 				tput sgr0
-				return 1
 			fi
 		else
 			if [ -f "$binary" ]
@@ -823,7 +822,6 @@ function compile_source {
 				tput bold
 				echo "linkage error for: $1" >&2
 				tput sgr0
-				return 1
 			fi
 		elif [ "$LINKABLE" = "true" ] && [ -z "$LINKER" ]
 		then
