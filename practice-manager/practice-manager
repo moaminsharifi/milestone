@@ -2140,6 +2140,13 @@ function reorder_index {
 	fi
 }
 
+# requires path to chapter only
+function list_index {
+	echo "${1/\.\//}:"
+	sed -n '2,$p' "${1%/}/.index" | nl
+	echo
+}
+
 # requires relative path
 function analyze_path {
 	local path="${1%/}"
@@ -2150,6 +2157,7 @@ function analyze_path {
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 1 ]
 	then
 		validate_chapter "$path"
+		list_index "$path"
 	# if does not have extension and exists but not indexed: check and join
 	elif [ -z "$extension" ] && [ -d "$path" ] && [ -f "${path%/*}/.index" ]\
 		&& [ "$(grep -c "^${path##*/}$" "${path%/*}/.index")" -eq 0 ]
