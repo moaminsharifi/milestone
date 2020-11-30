@@ -1977,7 +1977,7 @@ function touch_sources {
 		directory="{}"
 		while read -r file
 		do
-			for entry in $file
+			for entry in "$file"
 			do
 				filename="${directory%/*}/$entry"
 				if [ -f "$filename" ]
@@ -1985,7 +1985,7 @@ function touch_sources {
 					touch "$filename"
 				fi
 			done
-		done < {}' \;
+		done < "{}"' \;
 }
 
 # requires path to page or chapter
