@@ -836,7 +836,7 @@ function validate_page {
 				touch "$page"
 			fi
 		else
-			if [ "$extension" = "config" ] && [ -f "$page" ]
+			if [ "$extension" = "config" ]
 			then
 				regenerate_configuration "$page"
 			fi
