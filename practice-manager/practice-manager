@@ -259,7 +259,8 @@ a:focus {
 .dark-mode .pager li > a:hover,
 .dark-mode .pager li > a:focus,
 .dark-mode .pager li > span:hover {
-	color: #6c757d;
+	background-color: #555555;
+	color: #bdc0c4;
 }
 
 .dark-mode .pager .disabled a,
@@ -318,6 +319,19 @@ EOF
   padding: 15px;
 }
 
+.dark-mode .list-group-item {
+	background-color: #212529;
+	color: #aaaaaa;
+}
+
+.dark-mode a.list-group-item:focus,
+.dark-mode a.list-group-item:hover,
+.dark-mode button.list-group-item:focus,
+.dark-mode button.list-group-item:hover {
+	background-color: #555555;
+	color: #bdc0c4;
+}
+
 .list-group.list-group-root {
   padding: 0;
   overflow: hidden;
@@ -370,14 +384,14 @@ function generate_html_script {
 			echo "<script>" >> "./html-files/${index}.html"
 
 			cat << 'EOF' >> "./html-files/${index}.html"
-function darkmode(manual = false) {
-	const hours = new Date().getHours()
-	const isDayTime = hours > 6 && hours < 20
+function darkmode(manual) {
+	const hours = new Date().getHours();
+	const isNight = !(hours > 6 && hours < 20);
 	var bodystyle = document.body;
-    if (!isDayTime || manual) {
-   		bodystyle.classList.add("dark-mode");
-    } else {
-   		bodystyle.classList.remove("dark-mode");
+	if (isNight || manual) {
+		bodystyle.classList.add("dark-mode");
+	} else {
+		bodystyle.classList.remove("dark-mode");
 	}
 }
 darkmode();
@@ -1496,10 +1510,14 @@ function generate_output_section {
 	if [ "${INPUT:-true}" = "true" ] && [ -f "$input" ]
 	then
 		generate_html_header "$1" 3 Input
+		generate_html_code "$1" begin language-bash
+
 		while read -r line
 		do
-			generate_html_text "$1" "$line"
+			echo "$line" >> "./html-files/${index}.html"
 		done < "$input"
+
+		generate_html_code "$1" end
 	fi
 
 	if [ "${OUTPUT:-true}" = "true" ]
@@ -1507,16 +1525,19 @@ function generate_output_section {
 		if [ -f "$output" ] && [ "$(wc -w < "$output")" -gt 0 ]
 		then
 			generate_html_header "$1" 3 Output
+			generate_html_code "$1" begin language-bash
 
 			while read -r line
 			do
-				generate_html_text "$1" "$line"
+				echo "$line" >> "./html-files/${index}.html"
 			done < "$output"
 
 			if [ "$(wc -l < "$output")" -eq 0 ]
 			then
 				echo >> "$output"
 			fi
+
+			generate_html_code "$1" end
 		elif [ -f "$output" ]
 		then
 			rm "$output"
