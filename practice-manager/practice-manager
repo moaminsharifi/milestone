@@ -797,6 +797,9 @@ function regenerate_configuration {
 		echo "invalid configuration to regenerate"
 		tput sgr0
 		return 1
+	elif ! [ -f "$1" ]
+	then
+		touch "$1"
 	fi
 
 	local line=
@@ -833,7 +836,7 @@ function validate_page {
 				touch "$page"
 			fi
 		else
-			if [ "$extension" = "config" ]
+			if [ "$extension" = "config" ] && [ -f "$page" ]
 			then
 				regenerate_configuration "$page"
 			fi
@@ -854,6 +857,7 @@ function validate_chapter {
 		sed -i -e '/README.md/d' -e '1i README.md' "${1%/}/.index"
 	fi
 
+	# update configuration of chapter
 	regenerate_configuration "${1%/}/.config"
 
 	for extension in md config title.txt comment.txt reference.txt
@@ -862,16 +866,13 @@ function validate_chapter {
 
 		if [ "$extension" = "config" ]
 		then
-			if ! [ -f "${1%/}/.config" ]
-			then
-				# configuration for chapter
-				generate_configuration "$1"
-			fi
 			# configuration for readme file
 			echo "EXECUTABLE=false" > "$page"
 			echo "SOURCE=false" >> "$page"
 			echo "INPUT=false" >> "$page"
 			echo "OUTPUT=false" >> "$page"
+			# update configuration of readme
+			regenerate_configuration "$page"
 		elif ! [ -f "$page" ]
 		then
 			if [ "$extension" = "md" ]
@@ -2400,14 +2401,14 @@ function analyze_paramters {
 # Analyze Options and Paramters
 ###############################################################################
 
-if [ -f ./.config ]
+if [ -f ./.config ] && [ ./.index ]
 then
 	validation_check=202012010339
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
 		tput bold
-		echo "validating repository for new configuration..." >&2
+		echo "configuring repository for the latest update..." >&2
 		tput sgr0
 		if ! validate_configuration "./.index"
 		then
