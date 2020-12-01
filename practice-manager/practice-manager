@@ -1305,10 +1305,24 @@ function run_program {
 	local output="${1%.*}.output.txt"
 	local location="${1%/*}"
 	local component=
+	local source_change_time=
+	local output_change_time=
+
+	source_change_time=$(stat -c "%Y" "$1")
+
+	if [ -f "$output" ]
+	then
+		output_change_time=$(stat -c "%Y" "$output")
+	else
+		output_change_time=0
+	fi
 
 	if [ "${RUNNABLE:-true}" != "true" ]
 	then
 		return 0
+	elif [ -f "$output" ] && [ "$source_change_time" -lt "$output_change_time" ]
+	then
+		return 1
 	fi
 
 	update_configuration "$1"
