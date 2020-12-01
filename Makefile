@@ -3,14 +3,14 @@
 all: link
 
 link:
-	chmod +x practice-manager
+	chmod +x practice-manager/practice-manager
 ifeq ($(wildcard ~/.local/bin/),)
 	mkdir -p ~/.local/bin/
 endif
 ifneq ($(wildcard ~/.local/bin/practice-manager),)
 	unlink ~/.local/bin/practice-manager
 endif
-	ln -s $$PWD/practice-manager ~/.local/bin/practice-manager
+	ln -s $$PWD/practice-manager/practice-manager ~/.local/bin/practice-manager
 
 unlink:
 ifneq ($(wildcard ~/.local/bin/practice-manager),)
@@ -23,7 +23,7 @@ install:
 ifeq ($(wildcard ~/.local/bin/),)
 	mkdir -p ~/.local/bin/
 endif
-	cp practice-manager ~/.local/bin/practice-manager
+	cp practice-manager/practice-manager ~/.local/bin/practice-manager
 
 uninstall:
 	rm -f ~/.local/bin/practice-manager
