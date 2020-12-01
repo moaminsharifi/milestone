@@ -2156,19 +2156,13 @@ function swap_chapter {
 	fi
 }
 
-function touch_sources {
+function remove_outputs {
 	find -type f -name ".index" -exec sh -c '
 		directory="{}"
-		while read -r file
+		while read -r entry
 		do
-			for entry in "$file"
-			do
-				filename="${directory%/*}/$entry"
-				if [ -f "$filename" ]
-				then
-					touch "$filename"
-				fi
-			done
+			entry="${entry% *}"
+			touch "${entry%.*}.output.txt"
 		done < "{}"' \;
 }
 
@@ -2446,7 +2440,7 @@ else
 		-h|--help) usage ;;
 		-r) remove_files "${2%/}" ;;
 		-o) reorder_index "${2%/}" ;;
-		-f|--force-compile) touch_sources; generate_manuals "./.index" ;;
+		-f|--force-compile) remove_outputs; generate_manuals "./.index" ;;
 		*)
 			if [ "${1:0:1}" = "-" ]
 			then
