@@ -10,6 +10,10 @@ main_configuration=\
 ## Set to false for text files
 #EXECUTABLE=true
 
+## Whether source should be compiled
+## Set false for scripting languages
+#COMPILABLE=true
+
 ## Program used to interpret or compile the practice file
 #COMPILER=
 #COMPILER_OPTIONS=
@@ -18,10 +22,6 @@ main_configuration=\
 ## Available statements: compiler, options, object, source, headers
 #COMPILATION_SCHEME=\"compiler options object source\"
 
-## Whether source should be compiled
-## Set false for scripting languages
-#COMPILABLE=true
-
 ## Whether all sources in one line of .index file should appear in linkage
 ## usually other files are headers only and won't need to be linked to source
 #INCLUDES=false
@@ -29,6 +29,11 @@ main_configuration=\
 ## What is the extension of the object which compiler throws?
 ## Default is set to .o
 #OUTPUT_OBJECT=
+
+## Whether object should be linked after compilation too
+## Defaut is set to true
+## Set false for scripts
+#LINKABLE=true
 
 ## Whether linker explicitly specified
 ## This is only used for compilable sources
@@ -39,11 +44,6 @@ main_configuration=\
 ## Available statements: linker, options, binary, object, headers, source,
 ##   location, page
 #LINKAGE_SCHEME=\"linker options binary object headers\"
-
-## Whether object should be linked after compilation too
-## Defaut is set to true
-## Set false for scripts
-#LINKABLE=true
 
 ## Wether generated output can run as an executable
 #RUNNABLE=true
@@ -2402,7 +2402,7 @@ function analyze_paramters {
 
 if [ -f ./.config ]
 then
-	validation_check=202012010254
+	validation_check=202012010339
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
