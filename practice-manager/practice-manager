@@ -1219,6 +1219,7 @@ function nearest_path {
 	local direction="${2:-up}"
 	local match=
 	local option=
+	local first="true"
 
 	if [ "$direction" = "up" ]
 	then
@@ -1230,8 +1231,13 @@ function nearest_path {
 		return 1
 	fi
 
-	while [ "$hierarchy" != "." ]
+	while [ "$hierarchy" != "." ] || [ "$first" = "true" ]
 	do
+		if [ "$hierarchy" = "." ]
+		then
+			first="false"
+		fi
+
 		match="$(grep "$option" "^$page" "${hierarchy}/.index")"
 
 		if [ "$direction" = "up" ]
@@ -1266,12 +1272,6 @@ function nearest_path {
 			break
 		fi
 	done
-
-	if [ "$hierarchy" = "." ]
-	then
-		page_index=
-		page_hierarchy=
-	fi
 }
 
 # requies process id to kill
@@ -1569,15 +1569,29 @@ function generate_comment_section {
 function generate_quick_access_section {
 	local page="${1%.*}"
 	page="${page##*/}"
+	local current_index=
 	local next_index=
 	local previous_index=
 	local button=
 
+	index_page "$1"
+	current_index="$page_index"
+
 	nearest_path "$1" up
-	previous_index="$page_index"
+	if [ "$page_index" = "$current_index" ]
+	then
+		previous_index=
+	else
+		previous_index="$page_index"
+	fi
 
 	nearest_path "$1" down
-	next_index="$page_index"
+	if [ "$page_index" = "$previous_index" ]
+	then
+		next_index=
+	else
+		next_index="$page_index"
+	fi
 
 	#generate_html_nav "$1" begin "Practice Navigation"
 	generate_html_list "$1" begin pager
