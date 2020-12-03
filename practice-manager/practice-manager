@@ -1071,7 +1071,7 @@ function compile_source {
 	execution_command="${execution_command//  / }"
 	execution_command="${execution_command% }"
 
-	if ! [ -f "$output" ] || [ "$source_change_time" -ge "$output_change_time" ]
+	if ! [ -f "$output" ] || [ "$source_change_time" -gt "$output_change_time" ]
 	then
 		if [ "${COMPILABLE:-true}" = "true" ]
 		then
@@ -1122,7 +1122,7 @@ function compile_source {
 	execution_command="${execution_command% }"
 
 	if [ "${LINKABLE:-true}" = "true" ] && ! [ -f "$output" ]\
-	   	|| [ "$source_change_time" -ge "$output_change_time" ]
+	   	|| [ "$source_change_time" -gt "$output_change_time" ]
 	then
 		if [ "${LINKABLE:-true}" = "true" ] && [ -n "$LINKER" ]
 		then
@@ -1320,7 +1320,7 @@ function run_program {
 	if [ "${RUNNABLE:-true}" != "true" ]
 	then
 		return 0
-	elif [ -f "$output" ] && [ "$source_change_time" -lt "$output_change_time" ]
+	elif [ -f "$output" ] && [ "$source_change_time" -le "$output_change_time" ]
 	then
 		return 0
 	fi
