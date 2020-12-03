@@ -2195,13 +2195,17 @@ function swap_chapter {
 }
 
 function remove_outputs {
+	local directory=
+
 	find -type f -name ".index" -exec sh -c '
 		directory="{}"
 		while read -r entry
 		do
-			entry="${entry% *}"
-			touch "${entry%.*}.output.txt"
-		done < "{}"' \;
+			if [ -f "${directory%/*}/${entry% *}" ]
+			then
+				touch "${directory%/*}/${entry% *}"
+			fi
+		done < "$directory"' \;
 }
 
 # requires path to page or chapter
