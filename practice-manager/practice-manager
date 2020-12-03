@@ -90,7 +90,26 @@ main_configuration=\
 
 # terminates script executaion after call
 function usage {
-	echo "Practice Page Manager"
+	echo "Practice Repository Manager (Milestone)"
+	echo
+	tput bold
+	echo "Usage:"
+	tput sgr0
+	echo
+	tput setaf 7
+	echo "  $ practice-manager <path>"
+	tput sgr0
+	echo "                        Create a chapter/page, or just peek inside"
+	echo
+	tput setaf 7
+	echo "  $ practice-manager <source> <destination>"
+	tput sgr0
+	echo "                        Move a chapter/page"
+	echo
+	tput setaf 7
+	echo "  $ practice-manager"
+	tput sgr0
+	echo "                        Generate html-files, no option required"
 	echo
 	tput bold
 	echo "Options:"
@@ -100,24 +119,6 @@ function usage {
 	echo "  -o <path/to/file>     Reorder index of page or chapter"
 	echo "  -f                    Force compile, regenerates all output files"
 	echo
-	tput bold
-	echo "Usage:"
-	tput sgr0
-	echo
-	tput setaf 7
-	echo "  $ practice-manager"
-	tput sgr0
-	echo "                        Reads files and generates html-files"
-	echo
-	tput setaf 7
-	echo "  $ practice-manager <source> <destination>"
-	tput sgr0
-	echo "                        Moves and/or renames page and/or chapter"
-	echo
-	tput setaf 7
-	echo "  $ practice-manager <path>"
-	tput sgr0
-	echo "                        Create chapter or page, or just peek inside"
 }
 
 # html line generators
@@ -2410,6 +2411,21 @@ function analyze_paramters {
 	local source="${1#\.\/}"
 	local destination="$2"
 
+	if [ "$source" = "." ]
+	then
+		if [ -f "./.index" ]
+		then
+			list_index "."
+			return 0
+		else
+			tput bold
+			echo "practice directory not initialized yet"
+			echo "run \`${0##*/} --help\`"
+			tput sgr0
+			return 1
+		fi
+	fi
+
 	if [ -z "$destination" ]
 	then
 		local hierarchy="."
@@ -2476,15 +2492,18 @@ then
 else
 	case "$1" in
 		-h|--help) usage ;;
-		-r) remove_files "${2%/}" ;;
-		-o) reorder_index "${2%/}" ;;
+		-r|--remove) remove_files "${2%/}" ;;
+		-o|--reorder) reorder_index "${2%/}" ;;
 		-f|--force-compile) remove_outputs; generate_manuals "./.index" ;;
 		*)
 			if [ "${1:0:1}" = "-" ]
 			then
 				usage
 			else
-				analyze_paramters "$1" "$2"
+				if ! analyze_paramters "$1" "$2"
+				then
+					exit 1
+				fi
 			fi ;;
 	esac
 fi
