@@ -996,8 +996,6 @@ function compile_source {
 	page="${page##*/}"
 	local location="${1%/*}"
 
-	update_configuration "$1"
-
 	if [ "${EXECUTABLE:-true}" != "true" ]
 	then
 		return 1
@@ -1317,8 +1315,6 @@ function run_program {
 		output_change_time=0
 	fi
 
-	update_configuration "$1"
-
 	# build running scheme
 	local running_command=
 	for component in ${RUNNING_SCHEME:-binary options}
@@ -1462,8 +1458,6 @@ function generate_page_name {
 
 # requires path to page
 function generate_source_section {
-	update_configuration "$1"
-
 	if [ "$SOURCE" != "true" ]
 	then
 		return 1
@@ -1565,8 +1559,6 @@ function generate_output_section {
 
 # requires absolute path to page
 function generate_comment_section {
-	update_configuration "$1"
-
 	if [ "$COMMENTS" != "true" ]
 	then
 		return 1
@@ -1727,6 +1719,7 @@ function generate_index_page {
 	local page="./html-files/index.html"
 	index=index
 
+	update_configuration "$page"
 	generate_html_section "$page" begin
 	generate_html_head "$page" begin
 	generate_html_style "$page" begin
@@ -1752,6 +1745,7 @@ function generate_index_page {
 function generate_page {
 	index_page "$1"
 	index="$page_index"
+	update_configuration "$1"
 	generate_html_section "$1" begin
 	generate_html_head "$1" begin
 	generate_html_style "$1" begin
@@ -1777,6 +1771,7 @@ function generate_page {
 function generate_chapter {
 	index_page "$1/README.md"
 	index="$page_index"
+	update_configuration "$1/README.md"
 	generate_html_section "$1/README.md" begin
 	generate_html_head "$1/README.md" begin
 	generate_html_head "$1/README.md" end
