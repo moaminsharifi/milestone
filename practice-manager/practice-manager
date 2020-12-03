@@ -996,7 +996,7 @@ function compile_source {
 	page="${page##*/}"
 	local location="${1%/*}"
 
-	if [ "${EXECUTABLE:-true}" != "true" ]
+	if [ "${EXECUTABLE:-false}" != "true" ]
 	then
 		return 1
 	fi
@@ -1023,7 +1023,7 @@ function compile_source {
 	local source_change_time
 	local component=
 
-	if [ "${COMPILABLE:-true}" = "true" ] && [ -z "$COMPILER" ]
+	if [ "${COMPILABLE:-false}" = "true" ] && [ -z "$COMPILER" ]
 	then
 		tput bold
 		echo "compiler not specified for: $1" >&2
@@ -1071,7 +1071,7 @@ function compile_source {
 
 	if ! [ -f "$output" ] || [ "$source_change_time" -gt "$output_change_time" ]
 	then
-		if [ "${COMPILABLE:-true}" = "true" ]
+		if [ "${COMPILABLE:-false}" = "true" ]
 		then
 			if ! $execution_command
 			then
@@ -1089,7 +1089,7 @@ function compile_source {
 		fi
 	fi
 
-	if [ "${COMPILABLE:-true}" = "true" ]
+	if [ "${COMPILABLE:-false}" = "true" ]
 	then
 		execution_command="${execution_command//$location/}"
 		generate_execution_mode "$1" compile "$execution_command" "$syntax"
@@ -1119,10 +1119,10 @@ function compile_source {
 	execution_command="${execution_command//  / }"
 	execution_command="${execution_command% }"
 
-	if [ "${LINKABLE:-true}" = "true" ] && ! [ -f "$output" ]\
+	if [ "${LINKABLE:-false}" = "true" ] && ! [ -f "$output" ]\
 	   	|| [ "$source_change_time" -gt "$output_change_time" ]
 	then
-		if [ "${LINKABLE:-true}" = "true" ] && [ -n "$LINKER" ]
+		if [ "${LINKABLE:-false}" = "true" ] && [ -n "$LINKER" ]
 		then
 			if ! $execution_command
 			then
@@ -1131,7 +1131,7 @@ function compile_source {
 				echo "  command: $execution_command" >&2
 				tput sgr0
 			fi
-		elif [ "${LINKABLE:-true}" = "true" ] && [ -z "$LINKER" ]
+		elif [ "${LINKABLE:-false}" = "true" ] && [ -z "$LINKER" ]
 		then
 			tput bold
 			echo "linker not specified for: $1" >&2
@@ -1140,7 +1140,7 @@ function compile_source {
 		fi
 	fi
 
-	if [ "${LINKABLE:-true}" = "true" ]
+	if [ "${LINKABLE:-false}" = "true" ]
 	then
 		execution_command="${execution_command//$location/}"
 		generate_execution_mode "$1" link "$execution_command" "$syntax"
@@ -1342,7 +1342,7 @@ function run_program {
 
 	generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
 
-	if [ "${RUNNABLE:-true}" != "true" ]
+	if [ "${RUNNABLE:-false}" != "true" ]
 	then
 		return 0
 	elif [ -f "$output" ] && [ "$source_change_time" -le "$output_change_time" ]
@@ -2464,7 +2464,7 @@ then
 		regenerate_configuration "./.config"
 		extract_configuration "./.config"
 		sed -i "s/^\(VALIDATION_ID=\)[0-9]*$/\1${validation_check}/" ./.config
-		echo "configuration complete, continuing..."
+		echo "configuration complete"
 	fi
 fi
 
