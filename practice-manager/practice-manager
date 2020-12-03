@@ -1092,7 +1092,7 @@ function compile_source {
 
 	if [ "${COMPILABLE:-false}" = "true" ]
 	then
-		execution_command="${execution_command//$location/}"
+		execution_command="${execution_command//$location\//}"
 		generate_execution_mode "$1" compile "$execution_command" "$syntax"
 	fi
 
@@ -1143,7 +1143,7 @@ function compile_source {
 
 	if [ "${LINKABLE:-false}" = "true" ]
 	then
-		execution_command="${execution_command//$location/}"
+		execution_command="${execution_command//$location\//}"
 		generate_execution_mode "$1" link "$execution_command" "$syntax"
 	fi
 }
@@ -1338,36 +1338,35 @@ function run_program {
 				;;
 		esac
 	done
-	execution_command="${execution_command//  / }"
+	running_command="${running_command//  / }"
 	running_command="${running_command% }"
 
-	generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
-
-	if [ "${RUNNABLE:-false}" != "true" ]
+	if [ "${RUNNABLE:-false}" = "true" ]
 	then
-		return 0
-	elif [ -f "$output" ] && [ "$source_change_time" -le "$output_change_time" ]
-	then
-		return 0
-	fi
-
-	if [ -f "$input" ]
-	then
-		if ! $running_command < "$input" > "$output"
+		if [ "$source_change_time" -gt "$output_change_time" ]
 		then
-			tput bold
-			echo "running program failed: $source" >&2
-			echo "  command: $running_command" >&2
-			tput sgr0
+			if [ -f "$input" ]
+			then
+				if ! $running_command < "$input" > "$output"
+				then
+					tput bold
+					echo "running program failed: $source" >&2
+					echo "  command: $running_command" >&2
+					tput sgr0
+				fi
+			else
+				if ! $running_command > "$output"
+				then
+					tput bold
+					echo "running program failed: $source" >&2
+					echo "  command: $running_command" >&2
+					tput sgr0
+				fi
+			fi
 		fi
-	else
-		if ! $running_command > "$output"
-		then
-			tput bold
-			echo "running program failed: $source" >&2
-			echo "  command: $running_command" >&2
-			tput sgr0
-		fi
+
+		running_command="${running_command//$location\//}"
+		generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
 	fi
 }
 
