@@ -238,6 +238,10 @@ a:focus {
 	color: #aaaaaa;
 }
 
+.dark-mode a {
+	color: darkblue;
+}
+
 .dark-mode .page-link {
 	color: #bdc0c4;
 	background-color: #212529;
