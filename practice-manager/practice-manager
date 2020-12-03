@@ -1317,14 +1317,6 @@ function run_program {
 		output_change_time=0
 	fi
 
-	if [ "${RUNNABLE:-true}" != "true" ]
-	then
-		return 0
-	elif [ -f "$output" ] && [ "$source_change_time" -le "$output_change_time" ]
-	then
-		return 0
-	fi
-
 	update_configuration "$1"
 
 	# build running scheme
@@ -1353,6 +1345,14 @@ function run_program {
 	running_command="${running_command% }"
 
 	generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
+
+	if [ "${RUNNABLE:-true}" != "true" ]
+	then
+		return 0
+	elif [ -f "$output" ] && [ "$source_change_time" -le "$output_change_time" ]
+	then
+		return 0
+	fi
 
 	if [ -f "$input" ]
 	then
