@@ -1848,6 +1848,14 @@ function expand_list {
 # requires full path to first index file to recusrively build document
 # must be called with trailing ./ in first argument
 function generate_manuals {
+	if ! [ -f "$1" ]
+	then
+		tput bold
+		echo "not a practice directory" >&2
+		tput sgr0
+		return 1
+	fi
+
 	if [ -d ./html-files/ ]
 	then
 		rm -r ./html-files/
