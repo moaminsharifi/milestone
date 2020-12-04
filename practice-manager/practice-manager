@@ -2019,15 +2019,20 @@ function remove_chapter {
 
 function rename_page {
 	local source="${1%.*}"
+	source="${source##*/}"
+	local location="${1%/*}"
 	local destination="${2%.*}"
 	local match=
+	local extension=
 
-	for match in $(find "${source%/*}" -type f -name "${source##*/}*")
+	for match in $(find "$location" -type f -name "${source}\.*")
 	do
-		mv "$match" "${source%/*}/${destination##*/}${match##*.}"
+		extension="${match##*/}"
+		extension="${extension#*.}"
+		mv "$match" "${destination}.${extension}"
 	done
 
-	sed -i "s/^${1##*/}$/${2##*/}/" "${1%/*}/.index"
+	sed -i "s/^${1##*/}\( \)*/${2##*/}\1/" "${location}/.index"
 }
 
 function rename_chapter {
