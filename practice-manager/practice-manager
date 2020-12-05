@@ -1974,18 +1974,15 @@ function join_chapter {
 # requires path to page
 function remove_page {
 	local page="${1%.*}"
+	page="${page##*/}"
 	local location="${1%/}"
 	location="${location%/*}"
 
-	if [ -f "$1" ]
+	if [ -f "${location}/.index" ]
 	then
-		rm "$page."*
-		page="${page##*/}"
-		if [ -f "${location}/.index" ]
-		then
-			sed -i "/${page}/d" "${location}/.index"
-		fi
-		echo "practice removed: ${1/$PWD\//}"
+		sed -i "/^${page}/d" "${location}/.index"
+		echo "practice unlinked: ${1/$PWD\//}"
+		echo "you can join this practice again by running \`${0##*/} $1\` later"
 	else
 		tput bold
 		echo "practice page does not exist: ${1/$PWD\//}" >&2
@@ -2003,12 +2000,12 @@ function remove_chapter {
 
 	if [ -d "$1" ]
 	then
-		rm -r "$1"
 		if [ -f "${location}/.index" ]
 		then
-			sed -i "/${chapter}/d" "${location}/.index"
+			sed -i "/^${chapter}$/d" "${location}/.index"
+			echo "chapter unlinked: ${1/$PWD\//}"
+			echo "you can join this chapter again by running \`${0##*/} $1\` later"
 		fi
-		echo "chapter removed: ${1/$PWD\//}"
 	else
 		tput bold
 		echo "chapter does not exist: ${1/$PWD\//}" >&2
