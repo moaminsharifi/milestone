@@ -1347,7 +1347,7 @@ function run_program {
 
 	if [ "${RUNNABLE:-false}" = "true" ]
 	then
-		if [ "$source_change_time" -gt "$output_change_time" ]
+		if [ "${OUTPUT:-false}" = "true" ] && [ "$source_change_time" -gt "$output_change_time" ]
 		then
 			if [ -f "$input" ]
 			then
