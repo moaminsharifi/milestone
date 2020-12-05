@@ -1558,8 +1558,6 @@ function generate_output_section {
 			echo "output file not found: $output" >&2
 			tput sgr0
 		fi
-	else
-		rm --force "$output"
 	fi
 }
 
@@ -2352,12 +2350,15 @@ function reorder_index {
 			if [ -n "$item" ]
 			then
 				new_index="$REPLY"
+				sed -i "/^${location##*/}$/d" "$index_file"
+				sed -i "${new_index}a ${location##*/}" "$index_file"
 				break
+			else
+				tput bold
+				echo "invalid number"
+				tput sgr0
 			fi
 		done
-
-		sed -i "/^${location##*/}$/d" "$index_file"
-		sed -i "${new_index}a ${location##*/}" "$index_file"
 	else
 		tput bold
 		echo "not indexed: $1" >&2
