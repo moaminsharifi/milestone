@@ -1975,14 +1975,13 @@ function join_chapter {
 
 # requires path to page
 function remove_page {
-	local page="${1%.*}"
-	page="${page##*/}"
+	local page="${1##*/}"
 	local location="${1%/}"
 	location="${location%/*}"
 
 	if [ -f "${location}/.index" ]
 	then
-		sed -i "/^${page}/d" "${location}/.index"
+		sed -i "/^${page}.*$/d" "${location}/.index"
 		echo "practice unlinked: ${1/$PWD\//}"
 		echo "you can join this practice again by running \`${0##*/} $1\` later"
 	else
@@ -2345,7 +2344,7 @@ function reorder_index {
 		return 1
 	fi
 
-	if [ -f "$index_file" ]
+	if [ -f "$index_file" ] && [ "$(grep -c "^${1##*/}" "$index_file")" -gt 0 ]
 	then
 		PS3="Replace with: "
 		select item in $(sed '1d' "$index_file" | xargs)
@@ -2361,7 +2360,7 @@ function reorder_index {
 		sed -i "${new_index}a ${location##*/}" "$index_file"
 	else
 		tput bold
-		echo "path not indexed: $index_file" >&2
+		echo "not indexed: $1" >&2
 		tput sgr0
 		return 1
 	fi
