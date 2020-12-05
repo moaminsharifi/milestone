@@ -1519,7 +1519,7 @@ function generate_output_section {
 		return 1
 	fi
 
-	if [ "${INPUT:-true}" = "true" ] && [ -f "$input" ]
+	if [ "${INPUT:-false}" = "true" ] && [ -f "$input" ]
 	then
 		generate_html_header "$1" 3 Input
 		generate_html_code "$1" begin language-bash
@@ -1532,7 +1532,7 @@ function generate_output_section {
 		generate_html_code "$1" end
 	fi
 
-	if [ "${OUTPUT:-true}" = "true" ]
+	if [ "${OUTPUT:-false}" = "true" ]
 	then
 		if [ -f "$output" ]
 		then
@@ -1558,6 +1558,8 @@ function generate_output_section {
 			echo "output file not found: $output" >&2
 			tput sgr0
 		fi
+	else
+		rm --force "$output"
 	fi
 }
 
