@@ -114,15 +114,12 @@ usage() {
 	echo -e "Milestone Prototype"$DEFAULT
 	echo
 	tput bold
-	echo "Usage:"
+	echo -e "Options"
 	tput sgr0
-	echo -e "\tmilestone --tasks"
-	echo -e "\tmilestone --practice [title]"
-	echo -e "\tmilestone --notes"
+	echo "    --tasks"
+	echo "    --practice [title]"
+	echo "    --notes"
 	echo
-	tput bold
-	echo -e "General Options"
-	tput sgr0
 	echo "    -h, --help        show help"
 	echo "    -v, --version     show program version"
 	echo "    -r, --reset           reset cycle and start over"
@@ -130,26 +127,15 @@ usage() {
 	echo "    --restart         close cycles and start new one"
 	echo "    --debug           enable debugging option"
 	echo
-	tput bold
-	echo "Practice Options"
-	tput sgr0
-	echo "    -p, --practice   begin practice routine"
 	echo "    -s, --score       score practice"
+	echo "    -s, --backup      backup practices"
+	echo
 	echo "    -w, --write-notes write daily note objectives"
 	echo "    --tab N           adjust tab size for practices, default=4"
 	echo
-	tput dim
-	echo "    practice name or number is required for following options as option values"
-	tput sgr0
 	echo "    -q, --query       query practice"
 	echo "    -n, --notes       list notes"
 	echo
-	tput bold
-	echo "Editing Options"
-	tput sgr0
-	tput dim
-	echo "    practice name or number is required for following options as option values"
-	tput sgr0
 	echo "    -d                mark practice as done"
 	echo "    -d+               mark practice as done and increment progress"
 	echo "    -dn               check note"
@@ -1186,7 +1172,7 @@ if [ $# -eq 0 ]; then
 fi
 
 parameters=$(
-	getopt -n 'milestone' -o 'mhq:d:D:sp:wnrPvV' --long 'help,query:,done:,not-done:,practices:,practice:,d+:,progress:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug,tasks,daily,backup' -- "$@"
+	getopt -n 'milestone' -o 'mhq:d:D:spwnrPvVb' --long 'help,query:,done:,not-done:,practices,practice:,d+:,progress:,set-progress:,D-:,revert-progress:,dn:,check-note:,score,write-notes,list-notes,notes,reset,reorder,preference:,restart,debug,tasks,daily,backup' -- "$@"
 )
 if [ $? -ne 0 ]; then usage; exit 4; fi
 eval set -- "$parameters"
@@ -1199,7 +1185,7 @@ while true; do
 			usage
 			exit 0
 			;;
-		--backup)
+		-b|--backup)
 			ACTIVITY_OPTIONS=true;
 			create_score_file
 			backup_practices
@@ -1280,8 +1266,6 @@ while true; do
 		-p|--practice|--practices)
 			ACTIVITY_OPTIONS=true;
 			PRACTICES_OPTION=true;
-			LOOKUP_TEXT="$2";
-			shift
 			;;
 		-w|--write-notes)
 			ACTIVITY_OPTIONS=true;
@@ -1372,13 +1356,10 @@ if $SCORE_OPTION; then
 fi
 
 if $PRACTICES_OPTION; then
-	trap "echo -e '\b\b\n'; score_practice; exit" SIGINT;
-	daily_practice;
-	if [ $ret -eq 0 ]; then
-		echo;
-		echo -e $BLUE"Practice Complete!"$DEFAULT
-		score_practice
-	fi
+	tput bold
+	echo "practices moved out of project"
+	tput sgr0
+	exit 1
 fi
 
 if $INSPECT_OPTION; then
