@@ -1369,7 +1369,7 @@ function run_program {
 			fi
 		fi
 
-		running_command="${running_command//$location\//}"
+		running_command="${running_command//$location\//./}"
 		generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
 	fi
 }
