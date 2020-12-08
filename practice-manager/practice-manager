@@ -1085,7 +1085,8 @@ function compile_source {
 				echo "  command: $execution_command" >&2
 				tput sgr0
 			fi
-		else
+		elif [ "${LINKABLE:-false}" = "true" ]
+		then
 			if [ -f "$binary" ]
 			then
 				unlink "$binary"
