@@ -79,11 +79,15 @@ main_configuration=\
 
 ## Whether comments should be verified by .reference.txt files or not.
 ## This feature will be used in the future
-#REFERENCE_VALIDITY=false
+#REFERENCE_VALIDITY=true
 
 ## Specify the hardness of this chapter
 ## This feature will be used in Milestone technical courses and tutorials
 #TECHNICAL_LEVEL=
+
+## Design pages as you want
+#PAGE_TEMPLATE=\"navigation title reference comment source execution output input pagination\"
+#CHAPTER_TEMPLATE=\"navigation title reference comment pagination\"
 
 ## DO NOT EDIT!
 #VALIDATION_ID=0"
@@ -1379,7 +1383,7 @@ function run_program {
 ###############################################################################
 
 # requires path to page
-function generate_breadcrumb_section {
+function generate_navigation_section {
 	local hierarchy=
 	local entry=
 	local page=
@@ -1758,12 +1762,24 @@ function generate_page {
 	generate_html_head "$1" end
 	generate_html_body "$1" begin
 	generate_html_div "$1" begin container
-	generate_breadcrumb_section "$1"
-	generate_header_section "$1"
-	generate_comment_section "$1"
-	generate_source_section $@
-	generate_output_section $@
-	generate_quick_access_section "$1"
+
+	local section=
+	for section in $PAGE_TEMPLATE
+	do
+		case "$section" in
+			navigation) generate_navigation_section "$1" ;;
+			title) generate_header_section "$1" ;;
+			reference) continue ;;
+			comment) generate_comment_section "$1" ;;
+			source) generate_source_section $@ ;;
+			execution) continue ;;
+			output) generate_output_section $@ ;;
+			input) continue ;;
+			pagination) generate_quick_access_section "$1" ;;
+			*) continue ;;
+		esac
+	done
+
 	generate_html_div "$1" end container
 	generate_html_script "$1" begin
 	generate_html_script "$1" end
@@ -1779,14 +1795,30 @@ function generate_chapter {
 	update_configuration "$1/README.md"
 	generate_html_section "$1/README.md" begin
 	generate_html_head "$1/README.md" begin
-	generate_html_head "$1/README.md" end
-	generate_html_body "$1/README.md" begin
 	generate_html_style "$1" begin
 	generate_html_style "$1" end
-	generate_breadcrumb_section "$1"
-	generate_header_section "$1/README.md"
-	generate_comment_section "$1/README.md"
-	generate_quick_access_section "$1/README.md"
+	generate_html_head "$1/README.md" end
+	generate_html_body "$1/README.md" begin
+	generate_html_div "$1" begin container
+
+	local section=
+	for section in $CHAPTER_TEMPLATE
+	do
+		case "$section" in
+			navigation) generate_navigation_section "$1" ;;
+			title) generate_header_section "$1/README.md" ;;
+			reference) continue ;;
+			comment) generate_comment_section "$1/README.md" ;;
+			source) continue ;;
+			execution) continue ;;
+			output) continue ;;
+			input) continue ;;
+			pagination) generate_quick_access_section "$1/README.md" ;;
+			*) continue ;;
+		esac
+	done
+
+	generate_html_div "$1" end container
 	generate_html_script "$1" begin
 	generate_html_script "$1" end
 	generate_html_body "$1/README.md" end
@@ -2477,7 +2509,7 @@ function analyze_paramters {
 
 if [ -f ./.config ] && [ ./.index ]
 then
-	validation_check=202012010339
+	validation_check=202012111751
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
@@ -2487,12 +2519,20 @@ then
 		if ! validate_configuration "./.index"
 		then
 			echo "configuration failed"
-			return 1
+			exit 1
 		fi
 		regenerate_configuration "./.config"
 		extract_configuration "./.config"
 		sed -i "s/^\(VALIDATION_ID=\)[0-9]*$/\1${validation_check}/" ./.config
+		echo "Notes:"
+		echo
+		echo "    1. Practices belong to whom already know the topics"
+		echo "    2. Practices should cover easily forgotten details not basics"
+		echo "    3. Practices are meant to complement documentaions not be to a documentation itself"
+		echo
 		echo "configuration complete"
+		echo "run again to continue"
+		exit 0
 	fi
 fi
 
