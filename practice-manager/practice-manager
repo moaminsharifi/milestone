@@ -1308,10 +1308,10 @@ function generate_group_badge {
 		if [ "$entry" = "README.md" ]
 		then
 			continue
-		elif [ -d "${1%/*}/${entry}" ]
+		elif [ -d "${1%/*}/${entry%% *}" ]
 		then
 			generate_group_badge "${1%/*}/${entry}/.index"
-		elif [ -f "${1%/*}/${entry}" ]
+		elif [ -f "${1%/*}/${entry%% *}" ]
 		then
 			((badge++))
 		fi
@@ -1830,6 +1830,7 @@ function generate_page {
 			source) generate_source_section $@ ;;
 			execution) continue ;;
 			output) generate_output_section $@ ;;
+			error) continue ;;
 			input) continue ;;
 			pagination) generate_quick_access_section "$1" ;;
 			*) continue ;;
