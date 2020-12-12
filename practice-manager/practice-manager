@@ -758,15 +758,16 @@ function generate_list_group {
 
 # requires local link
 # requires title
-# requires link (not implemented yet)
+# requires badge
 function generate_list_group_collapse_item {
 	local link="${1}"
 	local title="${2}"
+	local badge_counter="${3}"
 
-#<a href="${link/-/.}.html">Visit</a>
 	cat << EOF >> "./html-files/${index}.html"
 <a href="#${link}" class="list-group-item" data-toggle="collapse">
 	<i class="glyphicon glyphicon-chevron-right"></i>${title}
+	<span class="badge badge-primary badge-pill">${badge_counter}</span>
 </a>
 EOF
 }
@@ -1298,6 +1299,25 @@ function nearest_path {
 	done
 }
 
+# zero-out badge variable before use
+# requires path to chapter
+function generate_group_badge {
+	local entry=
+	while read -r entry
+	do
+		if [ "$entry" = "README.md" ]
+		then
+			continue
+		elif [ -d "${1%/*}/${entry}" ]
+		then
+			generate_group_badge "${1%/*}/${entry}/.index"
+		elif [ -f "${1%/*}/${entry}" ]
+		then
+			((badge++))
+		fi
+	done < "$1"
+}
+
 # requies process id to kill
 # requies seconds to wait before strike
 function process_kill {
@@ -1577,7 +1597,7 @@ function generate_output_section {
 		fi
 	fi
 
-	if [ "${ERROR:-false}" = "true" ]
+	if [ "${ERROR:-false}" = "true" ] && [ "${GENERATES_ERROR:-false}" = "true" ]
 	then
 		if [ -f "$error" ]
 		then
@@ -1725,17 +1745,16 @@ function generate_table_of_content {
 					generate_html_header "$1" 4 "Table of Content"
 					generate_list_group_root "$1" begin
 				else
+					badge=0
+					generate_group_badge "$1"
 					title="${page_index%.0}. $(cat "${hierarchy}/${entry%.*}.title.txt")"
-					#generate_html_item_with_link "$1" "$title" "${page_index}.html"
-					generate_list_group_collapse_item "${page_index//./-}" "$title"
+					generate_list_group_collapse_item "${page_index//./-}" "$title" "$badge"
 					generate_list_group "$1" begin "${page_index//./-}"
 				fi
 			elif [ -f "${hierarchy}/${entry%/}/.index" ]
 			then
-				#generate_html_list "$1" begin
 				generate_table_of_content "${hierarchy}/${entry%/}/.index"
 				generate_list_group "$1" end
-				#generate_html_list "$1" end
 			else
 				tput bold
 				echo "broken hierarchy in ${hierarchy}/${entry%/}/.index"
@@ -1754,12 +1773,9 @@ function generate_table_of_content {
 			tput sgr0
 			return 2
 		else
-			#generate_html_list "$1" begin
 			index_page "${hierarchy}/${entry}"
 			title="${page_index%.0}. $(cat "${hierarchy}/${entry%.*}.title.txt")"
 			generate_list_group_item "${page_index}.html" "$title"
-			#generate_html_item_with_link "$1" "$title" "${page_index}.html"
-			#generate_html_list "$1" end
 		fi
 	done < "${hierarchy}/.index"
 }
