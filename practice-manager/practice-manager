@@ -17,6 +17,7 @@ main_configuration=\
 ## Program used to interpret or compile the practice file
 #COMPILER=
 #COMPILER_OPTIONS=
+#GENERATES_COMPILATION_ERROR=false
 
 ## Order of statements in compilation command
 ## Available statements: compiler, options, object, source, headers
@@ -39,6 +40,7 @@ main_configuration=\
 ## This is only used for compilable sources
 #LINKER=
 #LINKER_OPTIONS=
+#GENERATES_LINKAGE_ERROR=false
 
 ## Order of statements in linkage command
 ## Available statements: linker, options, binary, object, headers, source,
@@ -48,7 +50,7 @@ main_configuration=\
 ## Wether generated output can run as an executable
 #RUNNABLE=true
 #RUNNING_OPTIONS=
-#GENERATES_ERROR=false
+#GENERATES_RUNTIME_ERROR=false
 
 ## Order of statements in running command
 ## Available statements: compiler, linker, options, binary, object, headers,
@@ -67,18 +69,6 @@ main_configuration=\
 #TERMINATION_SIGNAL=SIGTERM
 #RUNTIME=3
 
-## Whether different sections should appear
-## Source is always false for readme files in order to prevent text duplication
-## Suitable for text sources which cannot be compiled
-#TITLE=true
-#COMMENTS=true
-#SOURCE=true
-#EXECUTION=true
-#OUTPUT=true
-#ERROR=true
-#INPUT=true
-#REFERENCE=true
-
 ## Whether comments should be verified by .reference.txt files or not.
 ## This feature will be used in the future
 #REFERENCE_VALIDITY=true
@@ -88,7 +78,7 @@ main_configuration=\
 #TECHNICAL_LEVEL=
 
 ## Design pages as you want
-#PAGE_TEMPLATE=\"navigation title reference comment source execution output input pagination\"
+#PAGE_TEMPLATE=\"navigation title reference comment source execution input output error pagination\"
 #CHAPTER_TEMPLATE=\"navigation title reference comment pagination\"
 
 ## DO NOT EDIT!
@@ -837,9 +827,16 @@ function regenerate_configuration {
 
 	while read -r line
 	do
-		config="${line%%=*}"
-		value="${line#*=}"
-		value="${value%%#*}"
+		config="${line%%=*}" # read configuration name
+		value="${line#*=}" # read configuration value
+		value="${value%%#*}" # ignore inline comments
+
+		# backward compatibility section
+		# if configs name are changed, map their values into new ones
+		case "$config" in
+			GENERATES_ERROR) config="GENERATES_RUNTIME_ERROR" ;;
+		esac
+
 		sed -i "/^#${config}=/s/^#\(${config}\)=.*/\1=${value}/" "$1"
 	done <<< "$target_config"
 }
@@ -1030,6 +1027,8 @@ function compile_source {
 	headers="${headers/$1 }"
 	local includes=
 	local output="${1%.*}.output.txt"
+	local compilation_error="${1%.*}.compilation.error.txt"
+	local linkage_error="${1%.*}.linkage.error.txt"
 	local execution_command
 	local output_change_time
 	local source_change_time
@@ -1085,12 +1084,20 @@ function compile_source {
 	then
 		if [ "${COMPILABLE:-false}" = "true" ]
 		then
-			if ! $execution_command
+			if ! $execution_command 2> "$compilation_error"
 			then
-				tput bold
-				echo "compilation error: $1" >&2
-				echo "  command: $execution_command" >&2
-				tput sgr0
+				if [ "${GENERATES_COMPILATION_ERROR:-false}" != "true" ]
+				then
+					tput bold
+					echo "compilation error: $1" >&2
+					echo "  command: $execution_command" >&2
+					tput sgr0
+				fi
+
+				if [ "${GENERATES_COMPILATION_ERROR:-false}" != "true" ] || [ "$(wc -w < "$compilation_error")" -eq 0 ]
+				then
+					rm "$compilation_error"
+				fi
 			fi
 		elif [ "${LINKABLE:-false}" = "true" ]
 		then
@@ -1137,12 +1144,20 @@ function compile_source {
 	then
 		if [ "${LINKABLE:-false}" = "true" ] && [ -n "$LINKER" ]
 		then
-			if ! $execution_command
+			if ! $execution_command 2> "$linkage_error"
 			then
-				tput bold
-				echo "linkage error for: $1" >&2
-				echo "  command: $execution_command" >&2
-				tput sgr0
+				if [ "${GENERATES_LINKAGE_ERROR:-false}" != "true" ]
+				then
+					tput bold
+					echo "linkage error for: $1" >&2
+					echo "  command: $execution_command" >&2
+					tput sgr0
+				fi
+
+				if [ "${GENERATES_LINKAGE_ERROR:-false}" != "true" ] || [ "$(wc -w < "$linkage_error")" -eq 0 ]
+				then
+					rm "$linkage_error"
+				fi
 			fi
 		elif [ "${LINKABLE:-false}" = "true" ] && [ -z "$LINKER" ]
 		then
@@ -1333,7 +1348,7 @@ function run_program {
 	local headers="$@"
 	headers="${headers/$1 }"
 	local output="${1%.*}.output.txt"
-	local error="${1%.*}.error.txt"
+	local runtime_error="${1%.*}.runtime.error.txt"
 	local location="${1%/*}"
 	local component=
 	local source_change_time=
@@ -1379,23 +1394,24 @@ function run_program {
 		then
 			if [ -f "$input" ]
 			then
-				if ! $running_command < "$input" 2> "$error" 1> "$output"
+				if ! $running_command < "$input" 2> "$runtime_error" 1> "$output"
 				then
-					if [ "${GENERATES_ERROR:-false}" != "true" ]
+					if [ "${GENERATES_RUNTIME_ERROR:-false}" != "true" ]
 					then
 						tput bold
 						echo "running program failed: $source" >&2
 						echo "  command: $running_command" >&2
 						tput sgr0
 					fi
+
 					# remove empty or unwanted error files
-					if [ "${GENERATES_ERROR:-false}" != "true" ] || [ $(wc -w < "$error") -eq 0 ]
+					if [ "${GENERATES_RUNTIME_ERROR:-false}" != "true" ] || [ "$(wc -w < "$runtime_error")" -eq 0 ]
 					then
-						rm "$error"
+						rm "$runtime_error"
 					fi
 				fi
 			else
-				if ! $running_command 2> "$error" 1> "$output"
+				if ! $running_command 2> "$runtime_error" 1> "$output"
 				then
 					tput bold
 					echo "running program failed: $source" >&2
@@ -1541,7 +1557,9 @@ function generate_output_section {
 	local page="${1%.*}"
 	local binary="$page.bin"
 	local output="$page.output.txt"
-	local error="$page.error.txt"
+	local compilation_error="$page.compilation.error.txt"
+	local linkage_error="$page.linkage.error.txt"
+	local runtime_error="$page.runtime.error.txt"
 	local input="$page.input.txt"
 	page="${page##*/}"
 	local line
@@ -1597,11 +1615,22 @@ function generate_output_section {
 		fi
 	fi
 
-	if [ "${ERROR:-false}" = "true" ] && [ "${GENERATES_ERROR:-false}" = "true" ]
+	local generates_error="false"
+	if [ "${GENERATES_COMPILATION_ERROR:-false}" = "true" ] || \
+		[ "${GENERATES_LINKAGE_ERROR:-false}" = "true" ] || \
+		[ "${GENERATES_RUNTIME_ERROR:-false}" = "true" ]
 	then
-		if [ -f "$error" ]
+		if [ -f "$compilation_error" ] || [ -f "$linkage_error" ] || [ -f "$runtime_error" ]
 		then
-			if [ "$(wc -w < "$error")" -gt 0 ]
+			generate_html_header "$1" 3 Output
+		fi
+	fi
+
+	if [ "${ERROR:-false}" = "true" ] && [ "${GENERATES_COMPILATION_ERROR:-false}" = "true" ]
+	then
+		if [ -f "$compilation_error" ]
+		then
+			if [ "$(wc -w < "$compilation_error")" -gt 0 ]
 			then
 				generate_html_header "$1" 3 Error
 				generate_html_code "$1" begin language-bash
@@ -1609,18 +1638,74 @@ function generate_output_section {
 				while read -r line
 				do
 					echo "$line" >> "./html-files/${index}.html"
-				done < "$error"
+				done < "$compilation_error"
 
-				if [ "$(wc -l < "$error")" -eq 0 ]
+				if [ "$(wc -l < "$compilation_error")" -eq 0 ]
 				then
-					echo >> "$error"
+					echo >> "$compilation_error"
 				fi
 
 				generate_html_code "$1" end
 			fi
 		else
 			tput bold
-			echo "error file wanted but not found: $error" >&2
+			echo "compilation error file wanted but not found: $compilation_error" >&2
+			tput sgr0
+		fi
+	fi
+
+	if [ "${ERROR:-false}" = "true" ] && [ "${GENERATES_LINKAGE_ERROR:-false}" = "true" ]
+	then
+		if [ -f "$linkage_error" ]
+		then
+			if [ "$(wc -w < "$linkage_error")" -gt 0 ]
+			then
+				generate_html_header "$1" 3 Error
+				generate_html_code "$1" begin language-bash
+
+				while read -r line
+				do
+					echo "$line" >> "./html-files/${index}.html"
+				done < "$linkage_error"
+
+				if [ "$(wc -l < "$linkage_error")" -eq 0 ]
+				then
+					echo >> "$linkage_error"
+				fi
+
+				generate_html_code "$1" end
+			fi
+		else
+			tput bold
+			echo "linkage error file wanted but not found: $linkage_error" >&2
+			tput sgr0
+		fi
+	fi
+
+	if [ "${ERROR:-false}" = "true" ] && [ "${GENERATES_RUNTIME_ERROR:-false}" = "true" ]
+	then
+		if [ -f "$runtime_error" ]
+		then
+			if [ "$(wc -w < "$runtime_error")" -gt 0 ]
+			then
+				generate_html_header "$1" 3 Error
+				generate_html_code "$1" begin language-bash
+
+				while read -r line
+				do
+					echo "$line" >> "./html-files/${index}.html"
+				done < "$runtime_error"
+
+				if [ "$(wc -l < "$runtime_error")" -eq 0 ]
+				then
+					echo >> "$runtime_error"
+				fi
+
+				generate_html_code "$1" end
+			fi
+		else
+			tput bold
+			echo "runtime error file wanted but not found: $runtime error" >&2
 			tput sgr0
 		fi
 	fi
@@ -1628,7 +1713,7 @@ function generate_output_section {
 
 # requires absolute path to page
 function generate_comment_section {
-	if [ "$COMMENTS" != "true" ]
+	if [ "$COMMENT" != "true" ]
 	then
 		return 1
 	fi
@@ -1823,17 +1908,20 @@ function generate_page {
 	for section in $PAGE_TEMPLATE
 	do
 		case "$section" in
-			navigation) generate_navigation_section "$1" ;;
-			title) generate_header_section "$1" ;;
-			reference) continue ;;
-			comment) generate_comment_section "$1" ;;
-			source) generate_source_section $@ ;;
-			execution) continue ;;
-			output) generate_output_section $@ ;;
-			error) continue ;;
-			input) continue ;;
-			pagination) generate_quick_access_section "$1" ;;
-			*) continue ;;
+			navigation) NAVIGATION=true; generate_navigation_section "$1" ;;
+			title) TITLE=true; generate_header_section "$1" ;;
+			reference) REFERENE=true; continue ;;
+			comment) COMMENT=true; generate_comment_section "$1" ;;
+			source) SOURCE=true; generate_source_section $@ ;;
+			execution) EXECUTION=true; continue ;;
+			output) OUTPUT=true; generate_output_section $@ ;;
+			compilation_error) ERROR=true; continue ;;
+			linkage_error) ERROR=true; continue ;;
+			runtime_error) ERROR=true; continue ;;
+			input) INPUT=true; continue ;;
+			error) ERROR=true; continue ;;
+			pagination) PAGINATION=true; generate_quick_access_section "$1" ;;
+			*) tput bold; echo "invalid section name \`$section\`"; tput sgr0; continue ;;
 		esac
 	done
 
@@ -1862,16 +1950,17 @@ function generate_chapter {
 	for section in $CHAPTER_TEMPLATE
 	do
 		case "$section" in
-			navigation) generate_navigation_section "$1" ;;
-			title) generate_header_section "$1/README.md" ;;
-			reference) continue ;;
-			comment) generate_comment_section "$1/README.md" ;;
-			source) continue ;;
-			execution) continue ;;
-			output) continue ;;
-			input) continue ;;
-			pagination) generate_quick_access_section "$1/README.md" ;;
-			*) continue ;;
+			navigation) NAVIGATION=true; generate_navigation_section "$1" ;;
+			title) TITLE=true; generate_header_section "$1/README.md" ;;
+			reference) REFERENCE=true; continue ;;
+			comment) COMMENT=true; generate_comment_section "$1/README.md" ;;
+			source) SOURCE=true; continue ;;
+			execution) EXECUTION=true; continue ;;
+			output) OUTPUT=true; continue ;;
+			input) INPUT=true; continue ;;
+			error) ERROR=true; continue ;;
+			pagination) PAGINATION=true; generate_quick_access_section "$1/README.md" ;;
+			*) tput bold; echo "invalid section name \`$section\`"; tput sgr0; continue ;;
 		esac
 	done
 
@@ -2566,7 +2655,7 @@ function analyze_paramters {
 
 if [ -f ./.config ] && [ ./.index ]
 then
-	validation_check=202012122128
+	validation_check=202012131607
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
