@@ -1514,7 +1514,7 @@ function generate_page_name {
 
 # requires path to page
 function generate_source_section {
-	if [ "$SOURCE" != "true" ]
+	if [ "${SOURCE:-false}" != "true" ]
 	then
 		return 1
 	fi
@@ -1935,15 +1935,15 @@ function generate_page {
 
 # requires absolute path to page
 function generate_chapter {
-	index_page "$1/README.md"
+	index_page "$1"
 	index="$page_index"
-	update_configuration "$1/README.md"
-	generate_html_section "$1/README.md" begin
-	generate_html_head "$1/README.md" begin
+	update_configuration "$1"
+	generate_html_section "$1" begin
+	generate_html_head "$1" begin
 	generate_html_style "$1" begin
 	generate_html_style "$1" end
-	generate_html_head "$1/README.md" end
-	generate_html_body "$1/README.md" begin
+	generate_html_head "$1" end
+	generate_html_body "$1" begin
 	generate_html_div "$1" begin container
 
 	local section=
@@ -1951,15 +1951,15 @@ function generate_chapter {
 	do
 		case "$section" in
 			navigation) NAVIGATION=true; generate_navigation_section "$1" ;;
-			title) TITLE=true; generate_header_section "$1/README.md" ;;
+			title) TITLE=true; generate_header_section "$1" ;;
 			reference) REFERENCE=true; continue ;;
-			comment) COMMENT=true; generate_comment_section "$1/README.md" ;;
+			comment) COMMENT=true; generate_comment_section "$1" ;;
 			source) SOURCE=true; continue ;;
 			execution) EXECUTION=true; continue ;;
 			output) OUTPUT=true; continue ;;
 			input) INPUT=true; continue ;;
 			error) ERROR=true; continue ;;
-			pagination) PAGINATION=true; generate_quick_access_section "$1/README.md" ;;
+			pagination) PAGINATION=true; generate_quick_access_section "$1" ;;
 			*) tput bold; echo "invalid section name \`$section\`"; tput sgr0; continue ;;
 		esac
 	done
@@ -1967,8 +1967,8 @@ function generate_chapter {
 	generate_html_div "$1" end container
 	generate_html_script "$1" begin
 	generate_html_script "$1" end
-	generate_html_body "$1/README.md" end
-	generate_html_section "$1/README.md" end
+	generate_html_body "$1" end
+	generate_html_section "$1" end
 	index=
 }
 
@@ -2008,9 +2008,12 @@ function expand_list {
 				fi
 			done
 			generate_page $group
-		elif [ -f "$directory/$line" ]
+		elif [ -f "$directory/$line" ] && [ "$line" != "README.md" ]
 		then
 			generate_page "$directory/$line"
+		elif [ -f "$directory/$line" ] && [ "$line" = "README.md" ]
+		then
+			generate_chapter "$directory/$line"
 		elif [ -d "$directory/$line" ]
 		then
 			expand_list "$directory/$line/.index"
@@ -2655,7 +2658,7 @@ function analyze_paramters {
 
 if [ -f ./.config ] && [ ./.index ]
 then
-	validation_check=202012131607
+	validation_check=202012131613
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
