@@ -2096,6 +2096,7 @@ function add_page {
 	touch "${location}/${practice_name}"
 	# create additional files within source
 	validate_page "${location}/${practice_name}"
+	echo "practice created: ${location}/${practice_name}"
 }
 
 # requires path to location where chapter will be added
@@ -2135,22 +2136,22 @@ function add_chapter {
 
 	mkdir "${location}/${chapter_name}"
 	validate_chapter "${location}/${chapter_name}"
+	echo "chapter created: ${location}/${chapter_name}"
 }
 
 # requires relative path to practice location
 function join_page {
 	# index page
 	echo "${1##*/}" >> "${1%/*}/.index"
-
-	# check if necessary files exist within page itself
 	validate_page "$1"
+	echo "practice joined: $1"
 }
 
 function join_chapter {
 	# index chapter
 	echo "${1##*/}" >> "${1%/*}/.index"
-
 	validate_chapter "$1"
+	echo "chapter joined: $1"
 }
 
 # requires path to page
@@ -2162,8 +2163,8 @@ function remove_page {
 	if [ -f "${location}/.index" ]
 	then
 		sed -i "/^${page}.*$/d" "${location}/.index"
-		echo "practice unlinked: ${1/$PWD\//}"
-		echo "you can join this practice again by running \`${0##*/} $1\` later"
+		echo "practice unlinked"
+		echo "you can rejoin this practice again by running \`${0##*/} $1\`"
 	else
 		tput bold
 		echo "practice page does not exist: ${1/$PWD\//}" >&2
@@ -2184,8 +2185,8 @@ function remove_chapter {
 		if [ -f "${location}/.index" ]
 		then
 			sed -i "/^${chapter}$/d" "${location}/.index"
-			echo "chapter unlinked: ${1/$PWD\//}"
-			echo "you can join this chapter again by running \`${0##*/} $1\` later"
+			echo "chapter unlinked"
+			echo "you can rejoin this chapter later by running \`${0##*/} $1\`"
 		fi
 	else
 		tput bold
@@ -2203,12 +2204,26 @@ function rename_page {
 	local match=
 	local extension=
 
-	for match in $(find "$location" -type f -name "${source}\.*")
-	do
-		extension="${match##*/}"
-		extension="${extension#*.}"
-		mv "$match" "${destination}.${extension}"
-	done
+	if [ "$source" = "$destination" ] && [ "${1##*.}" != "${2##*.}" ]
+	then
+		mv "$1" "$2"
+		echo "changed page extension from:"
+		echo "    ${1##*.}"
+		echo "to"
+		echo "    ${2##*.}"
+	else
+		for match in $(find "$location" -type f -name "${source}\.*")
+		do
+			extension="${match##*/}"
+			extension="${extension#*.}"
+			mv "$match" "${destination}.${extension}"
+		done
+
+		echo "renamed page from:"
+		echo "    $1"
+		echo "to"
+		echo "    $2"
+	fi
 
 	sed -i "s/^${1##*/}\( \)*/${2##*/}\1/" "${location}/.index"
 }
@@ -2220,6 +2235,10 @@ function rename_chapter {
 	if mv "$source" "$destination"
 	then
 		sed -i "s/^${source##*/}$/${destination##*/}/" "${source%/*}/.index"
+		echo "chapter renamed from:"
+		echo "    $1"
+		echo "to"
+		echo "    $2"
 	else
 		tput bold
 		echo "failed to rename chapter: $source" >&2
@@ -2237,6 +2256,7 @@ function move_page {
 		local match=
 		source="${1%.*}"
 		destination="${2%.*}"
+
 		for match in $(find "${source%/*}" -type f -name "${source##*/}*")
 		do
 			mv "$match" "${destination%/*}/${destination##*/}${match##*.}"
@@ -2244,7 +2264,10 @@ function move_page {
 
 		sed -i "s/^${1##*/}$/${2##*/}/" "${1%/*}/.index"
 		echo "${2##*/}" >> "${2%/*}/.index"
-
+		echo "page moved from:"
+		echo "    $1"
+		echo "to"
+		echo "    $2"
 	elif [ -d "$destination" ] && [ -f "${source%/}/.index" ]
 	then
 		if mv "${source%.*}*" "$destination"
@@ -2255,13 +2278,11 @@ function move_page {
 			tput bold
 			echo "failed to move source: $source" >&2
 			tput sgr0
-			return 1
 		fi
 	else
 		tput bold
 		echo "page not indexed: $source" >&2
 		tput sgr0
-		return 1
 	fi
 }
 
@@ -2426,7 +2447,6 @@ function move_files {
 					swap_chapter "$source" "$destination"
 				# destination does not exist, rename chapter
 				else
-					echo "renaming chapter"
 					rename_chapter "$source" "$destination"
 				fi
 			# locations are not similar
@@ -2463,7 +2483,6 @@ function move_files {
 				swap_page "$source" "$destination"
 			# destination doesn't exist, rename page
 			else
-				echo "renaming page"
 				rename_page "$source" "$destination"
 			fi
 		# locations are not similar
@@ -2477,7 +2496,6 @@ function move_files {
 				return 1
 			# destination doesn't exist, move page to destination
 			else
-				echo "moving and renaming page"
 				move_page "$source" "$destination"
 			fi
 		fi
@@ -2487,7 +2505,6 @@ function move_files {
 		# destination directory must exist
 		if [ -d "${destination}" ]
 		then
-			echo "moving page"
 			move_page "$source" "$destination"
 		else
 			tput bold
