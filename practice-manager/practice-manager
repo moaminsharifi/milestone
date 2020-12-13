@@ -2440,11 +2440,11 @@ function move_files {
 			# locations are similar
 			if [ "${source%/*}" = "${destination%/*}" ]
 			then
-				# destination exists, swap chapter
+				# destination exists, swap chapter [move for now]
 				if [ -d "$destination" ]
 				then
-					echo "swapting chapter"
-					swap_chapter "$source" "$destination"
+					echo "moving chapter"
+					move_chapter "$source" "$destination"
 				# destination does not exist, rename chapter
 				else
 					rename_chapter "$source" "$destination"
