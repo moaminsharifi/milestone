@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 main_configuration=\
-"## Language name for syntax highlighting
+"## Syntax name for syntax highlighting
 ## Only specify names supported by prism.js
 ## List of supported syntaxes:
 ### bash c cpp asm6502 java python aspnet csharp cmake django dns-zone docker
@@ -9,7 +9,7 @@ main_configuration=\
 ### mongodb nasm nginx objectivec opencl perl php phpdoc plsql powershell
 ### processing prolog qml r regex ruby rust scala sql swift typescript
 ### verilog vhdl vim wasm
-#LANGUAGE=
+#SYNTAX=
 
 ## Whether source can be executed either as compiled source or interpretable
 ## Set to false for text files
@@ -452,13 +452,13 @@ EOF
 <!-- prism languages -->
 EOF
 
-#echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-clike.min.js"></script>' >> "./html-files/${index}.html"
-	case "${LANGUAGE:-}" in
+	case "${SYNTAX:-}" in
 		c)
 			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-c.min.js"></script>' >> "./html-files/${index}.html"
 		;;
 		cpp|cxx|cplusplus)
 			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-cpp.min.js"></script>' >> "./html-files/${index}.html"
+			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-clike.min.js"></script>' >> "./html-files/${index}.html"
 		;;
 		asm6502|asm|s|assembly)
 			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-asm6502.min.js"></script>' >> "./html-files/${index}.html"
@@ -985,6 +985,7 @@ function regenerate_configuration {
 		# if configs name are changed, map their values into new ones
 		case "$config" in
 			GENERATES_ERROR) config="GENERATES_RUNTIME_ERROR" ;;
+			LANGUAGE) config="SYNTAX" ;;
 		esac
 
 		sed -i "/^#${config}=/s/^#\(${config}\)=.*/\1=${value}/" "$1"
@@ -1161,9 +1162,9 @@ function compile_source {
 	fi
 
 	local syntax=
-	if [ -n "$LANGUAGE" ]
+	if [ -n "$SYNTAX" ]
 	then
-		syntax="$LANGUAGE"
+		syntax="$SYNTAX"
 	else
 		syntax="${1##*.}"
 	fi
@@ -1579,7 +1580,7 @@ function run_program {
 		fi
 
 		running_command="${running_command//$location\//./}"
-		generate_execution_mode "$1" run "$running_command" "$LANGUAGE"
+		generate_execution_mode "$1" run "$running_command" "$SYNTAX"
 	fi
 }
 
@@ -1683,9 +1684,9 @@ function generate_source_section {
 		generate_page_name "${1}"
 
 		local syntax=
-		if [ -n "$LANGUAGE" ]
+		if [ -n "$SYNTAX" ]
 		then
-			syntax="$LANGUAGE"
+			syntax="$SYNTAX"
 		else
 			syntax="${1##*.}"
 		fi
@@ -2832,7 +2833,7 @@ function analyze_paramters {
 
 if [ -f ./.config ] && [ ./.index ]
 then
-	validation_check=202012182136
+	validation_check=202012182218
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
