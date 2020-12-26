@@ -457,8 +457,8 @@ EOF
 			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-c.min.js"></script>' >> "./html-files/${index}.html"
 		;;
 		cpp|cxx|cplusplus)
+			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-c.min.js"></script>' >> "./html-files/${index}.html"
 			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-cpp.min.js"></script>' >> "./html-files/${index}.html"
-			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-clike.min.js"></script>' >> "./html-files/${index}.html"
 		;;
 		asm6502|asm|s|assembly)
 			echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/components/prism-asm6502.min.js"></script>' >> "./html-files/${index}.html"
@@ -613,17 +613,16 @@ EOF
 	echo '</body>' >> "./html-files/${index}.html"
 }
 
-# requires path to page
 # optional begin/end
 # optional pre class
 # optional code class
 # optional attributes
 function generate_html_code {
-	local page="${1%.*}"
-	page="${page##*/}"
-	local side="${2:-begin}"
-	local pre_class="$3"
-	local code_class="$4"
+	local side="${1:-begin}"
+	local pre_class="$2"
+	local code_class="$3"
+	shift 3
+	local attributes="$@"
 	local code_tag
 
 	if [ -n "$code_class" ]
@@ -635,9 +634,8 @@ function generate_html_code {
 
 	if [ "$side" = "begin" ]
 	then
-		shift 4
 		cat << EOF >> "./html-files/${index}.html"
-<pre class="${pre_class}" $@>
+<pre class="${pre_class}" $attributes>
 ${code_tag}
 EOF
 	else
@@ -1143,9 +1141,9 @@ function generate_execution_mode {
 	fi
 
 	generate_html_header "$1" 4 "${mode}"
-	generate_html_code "$1" begin "command-line" "language-bash" "data-user=\"${syntax}\" data-host=\"milestone\""
+	generate_html_code begin command-line language-bash "data-user=\"${syntax}\" data-host=\"milestone\""
 	echo "$command" >> "./html-files/${index}.html"
-	generate_html_code "$1" end
+	generate_html_code end
 }
 
 # requires absolute path to source
@@ -1691,7 +1689,7 @@ function generate_source_section {
 			syntax="${1##*.}"
 		fi
 
-		generate_html_code "$1" begin "line-numbers" "language-${syntax}"
+		generate_html_code begin line-numbers "language-${syntax}"
 		OLD_IFS="$IFS"
 		IFS=
 		local line
@@ -1705,7 +1703,7 @@ function generate_source_section {
 			echo "    $line" >> "./html-files/${index}.html"
 		done < "$1"
 		IFS="$OLD_IFS"
-		generate_html_code "$1" end
+		generate_html_code end
 		shift
 	done
 }
@@ -1735,14 +1733,14 @@ function generate_output_section {
 	if [ "${INPUT:-false}" = "true" ] && [ -f "$input" ]
 	then
 		generate_html_header "$1" 3 Input
-		generate_html_code "$1" begin language-bash
+		generate_html_code begin language-bash
 
 		while read -r line
 		do
 			echo "$line" >> "./html-files/${index}.html"
 		done < "$input"
 
-		generate_html_code "$1" end
+		generate_html_code end
 	fi
 
 	if [ "${OUTPUT:-false}" = "true" ]
@@ -1752,7 +1750,7 @@ function generate_output_section {
 			if [ "$(wc -w < "$output")" -gt 0 ]
 			then
 				generate_html_header "$1" 3 Output
-				generate_html_code "$1" begin language-bash
+				generate_html_code begin language-bash
 
 				while read -r line
 				do
@@ -1764,7 +1762,7 @@ function generate_output_section {
 					echo >> "$output"
 				fi
 
-				generate_html_code "$1" end
+				generate_html_code end
 			fi
 		else
 			tput bold
@@ -1791,7 +1789,7 @@ function generate_output_section {
 			if [ "$(wc -w < "$compilation_error")" -gt 0 ]
 			then
 				generate_html_header "$1" 3 Error
-				generate_html_code "$1" begin language-bash
+				generate_html_code begin language-bash
 
 				while read -r line
 				do
@@ -1803,7 +1801,7 @@ function generate_output_section {
 					echo >> "$compilation_error"
 				fi
 
-				generate_html_code "$1" end
+				generate_html_code end
 			fi
 		else
 			tput bold
@@ -1819,7 +1817,7 @@ function generate_output_section {
 			if [ "$(wc -w < "$linkage_error")" -gt 0 ]
 			then
 				generate_html_header "$1" 3 Error
-				generate_html_code "$1" begin language-bash
+				generate_html_code begin language-bash
 
 				while read -r line
 				do
@@ -1831,7 +1829,7 @@ function generate_output_section {
 					echo >> "$linkage_error"
 				fi
 
-				generate_html_code "$1" end
+				generate_html_code end
 			fi
 		else
 			tput bold
@@ -1847,7 +1845,7 @@ function generate_output_section {
 			if [ "$(wc -w < "$runtime_error")" -gt 0 ]
 			then
 				generate_html_header "$1" 3 Error
-				generate_html_code "$1" begin language-bash
+				generate_html_code begin language-bash
 
 				while read -r line
 				do
@@ -1859,7 +1857,7 @@ function generate_output_section {
 					echo >> "$runtime_error"
 				fi
 
-				generate_html_code "$1" end
+				generate_html_code end
 			fi
 		else
 			tput bold
