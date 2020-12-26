@@ -93,7 +93,7 @@ main_configuration=\
 function usage {
 	echo "Practice Repository Manager (Milestone)"
 	echo
-	tput bold
+	tput setaf $SEVERITY_HIGH
 	echo "Usage:"
 	tput sgr0
 	echo
@@ -112,7 +112,7 @@ function usage {
 	tput sgr0
 	echo "                        Generate html-files, no option required"
 	echo
-	tput bold
+	tput setaf $SEVERITY_HIGH
 	echo "Options:"
 	tput sgr0
 	echo
@@ -121,6 +121,10 @@ function usage {
 	echo "  -f                    Force compile, regenerates all output files"
 	echo
 }
+
+SEVERITY_LOW=4
+SEVERITY_MEDIUM=3
+SEVERITY_HIGH=1
 
 # html line generators
 ###############################################################################
@@ -942,7 +946,7 @@ function generate_configuration {
 	then
 		page="${1%/}/.config"
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "invalid location to create config file: $1" >&2
 		tput sgr0
 		return 1
@@ -957,7 +961,7 @@ EOF
 function regenerate_configuration {
 	if [ "${1##*.}" != "config" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "invalid configuration to regenerate"
 		tput sgr0
 		return 1
@@ -1071,7 +1075,7 @@ function validate_configuration {
 
 	if ! [ -f "$1" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_MEDIUM
 		echo "unindexed directory: $directory/" >&2
 		tput sgr0
 		return 1
@@ -1091,7 +1095,7 @@ function validate_configuration {
 				return 1
 			fi
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "missing entry: $directory/$line" >&2
 			tput sgr0
 		fi
@@ -1134,7 +1138,7 @@ function generate_execution_mode {
 
 	if [ -z "$command" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "execution command not specified: $page"
 		tput sgr0
 		return 1
@@ -1185,7 +1189,7 @@ function compile_source {
 
 	if [ "${COMPILABLE:-false}" = "true" ] && [ -z "$COMPILER" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "compiler not specified for: $1" >&2
 		tput sgr0
 		return 1
@@ -1219,7 +1223,7 @@ function compile_source {
 			page) execution_command+="$page " ;;
 			location) execution_command+="$location " ;;
 			*)
-				tput bold
+				tput setaf $SEVERITY_HIGH
 				echo "invalid scheme component: $component" >&2
 				tput sgr0
 				return 1
@@ -1237,7 +1241,7 @@ function compile_source {
 			then
 				if [ "${GENERATES_COMPILATION_ERROR:-false}" != "true" ]
 				then
-					tput bold
+					tput setaf $SEVERITY_HIGH
 					echo "compilation error: $1" >&2
 					echo "  command: $execution_command" >&2
 					tput sgr0
@@ -1278,7 +1282,7 @@ function compile_source {
 			page) execution_command+="$page " ;;
 			location) execution_command+="$location " ;;
 			*)
-				tput bold
+				tput setaf $SEVERITY_HIGH
 				echo "invalid scheme component: $component" >&2
 				tput sgr0
 				return 1
@@ -1297,7 +1301,7 @@ function compile_source {
 			then
 				if [ "${GENERATES_LINKAGE_ERROR:-false}" != "true" ]
 				then
-					tput bold
+					tput setaf $SEVERITY_HIGH
 					echo "linkage error for: $1" >&2
 					echo "  command: $execution_command" >&2
 					tput sgr0
@@ -1310,7 +1314,7 @@ function compile_source {
 			fi
 		elif [ "${LINKABLE:-false}" = "true" ] && [ -z "$LINKER" ]
 		then
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "linker not specified for: $1" >&2
 			tput sgr0
 			return 1
@@ -1527,7 +1531,7 @@ function run_program {
 			page) running_command+="$page " ;;
 			location) running_command+="$location " ;;
 			*)
-				tput bold
+				tput setaf $SEVERITY_HIGH
 				echo "invalid scheme component: $component" >&2
 				tput sgr0
 				return 1
@@ -1547,7 +1551,7 @@ function run_program {
 				then
 					if [ "${GENERATES_RUNTIME_ERROR:-false}" != "true" ]
 					then
-						tput bold
+						tput setaf $SEVERITY_HIGH
 						echo "running program failed: $source" >&2
 						echo "  command: $running_command" >&2
 						tput sgr0
@@ -1563,7 +1567,7 @@ function run_program {
 				then
 					if [ "${GENERATES_RUNTIME_ERROR:-false}" != "true" ]
 					then
-						tput bold
+						tput setaf $SEVERITY_HIGH
 						echo "running program failed: $source" >&2
 						echo "  command: $running_command" >&2
 						tput sgr0
@@ -1621,7 +1625,7 @@ function generate_navigation_section {
 			title="$(cat "${hierarchy%.*}.title.txt")"
 			generate_html_item "$1" "${title:-"..."}" "breadcrumb-item active"
 		else
-			tput bold
+			tput setaf $SEVERITY_MEDIUM
 			echo "untitled breadcrumb: ${hierarchy}"
 			tput sgr0
 			generate_html_item "$1" "..." breadcrumb-item
@@ -1646,12 +1650,12 @@ function generate_header_section {
 
 	if ! [ -f "$header" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "header not found: $header" >&2
 		tput sgr0
 	elif [ -z "$(cat "$header")" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_MEDIUM
 		echo "empty header: $header" >&2
 		tput sgr0
 	else
@@ -1765,7 +1769,7 @@ function generate_output_section {
 				generate_html_code end
 			fi
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "output file not found: $output" >&2
 			tput sgr0
 		fi
@@ -1804,7 +1808,7 @@ function generate_output_section {
 				generate_html_code end
 			fi
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "compilation error file wanted but not found: $compilation_error" >&2
 			tput sgr0
 		fi
@@ -1832,7 +1836,7 @@ function generate_output_section {
 				generate_html_code end
 			fi
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "linkage error file wanted but not found: $linkage_error" >&2
 			tput sgr0
 		fi
@@ -1860,7 +1864,7 @@ function generate_output_section {
 				generate_html_code end
 			fi
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "runtime error file wanted but not found: $runtime error" >&2
 			tput sgr0
 		fi
@@ -1880,12 +1884,12 @@ function generate_comment_section {
 
 	if ! [ -f "$comment" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_MEDIUM
 		echo "comment not found: $comment" >&2
 		tput sgr0
 	elif [ -z "$(cat "$comment")" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_MEDIUM
 		echo "empty comment: $comment" >&2
 		tput sgr0
 	else
@@ -1997,19 +2001,19 @@ function generate_table_of_content {
 				generate_table_of_content "${hierarchy}/${entry%/}/.index"
 				generate_list_group "$1" end
 			else
-				tput bold
+				tput setaf $SEVERITY_HIGH
 				echo "broken hierarchy in ${hierarchy}/${entry%/}/.index"
 				tput sgr0
 			fi
 		elif ! [ -f "${hierarchy}/${entry}" ]
 		then
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "missing entry in table of content: ${hierarchy}/${entry}"
 			tput sgr0
 			return 1
 		elif ! [ -f "${hierarchy}/${entry%.*}.title.txt" ]
 		then
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "missing entry title in table of content: ${hierarchy}/{$entry}"
 			tput sgr0
 			return 2
@@ -2077,7 +2081,7 @@ function generate_page {
 			input) INPUT=true; continue ;;
 			error) ERROR=true; continue ;;
 			pagination) PAGINATION=true; generate_quick_access_section "$1" ;;
-			*) tput bold; echo "invalid section name \`$section\`"; tput sgr0; continue ;;
+			*) tput setaf $SEVERITY_HIGH; echo "invalid section name \`$section\`"; tput sgr0; continue ;;
 		esac
 	done
 
@@ -2116,7 +2120,7 @@ function generate_chapter {
 			input) INPUT=true; continue ;;
 			error) ERROR=true; continue ;;
 			pagination) PAGINATION=true; generate_quick_access_section "$1" ;;
-			*) tput bold; echo "invalid section name \`$section\`"; tput sgr0; continue ;;
+			*) tput setaf $SEVERITY_HIGH; echo "invalid section name \`$section\`"; tput sgr0; continue ;;
 		esac
 	done
 
@@ -2138,7 +2142,7 @@ function expand_list {
 
 	if ! [ -f "$1" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "unindexed directory: $directory/" >&2
 		tput sgr0
 		return 1
@@ -2157,7 +2161,7 @@ function expand_list {
 				then
 					group="$group $directory/$file"
 				else
-					tput bold
+					tput setaf $SEVERITY_HIGH
 					echo "missing group member: $directory/$file" >&2
 					tput sgr0
 					continue 2
@@ -2174,7 +2178,7 @@ function expand_list {
 		then
 			expand_list "$directory/$line/.index"
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "missing entry: $directory/$line" >&2
 			tput sgr0
 		fi
@@ -2187,7 +2191,7 @@ function expand_list {
 function generate_manuals {
 	if ! [ -f "$1" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "not a practice directory" >&2
 		tput sgr0
 		return 1
@@ -2222,25 +2226,25 @@ function add_page {
 
 	if [ -z "$location" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "location not given" >&2
 		tput sgr0
 		return 1
 	elif [ -z "$practice_name" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "practice name not given" >&2
 		tput sgr0
 		return 1
 	elif ! [ -d "$location" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "location must be a directory: $location" >&2
 		tput sgr0
 		return 1
 	elif [ $(grep -c "^$practice_name$" "${location}/.index") -gt 0 ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "duplicate practice name: $practice_name" >&2
 		tput sgr0
 	fi
@@ -2262,19 +2266,19 @@ function add_chapter {
 
 	if [ -z "$location" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "location not given" >&2
 		tput sgr0
 		return 1
 	elif [ -z "$chapter_name" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "practice name not given" >&2
 		tput sgr0
 		return 1
 	elif ! [ -d "$location" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "location must be a directory: $location" >&2
 		tput sgr0
 		return 1
@@ -2322,7 +2326,7 @@ function remove_page {
 		echo "practice unlinked"
 		echo "you can rejoin this practice again by running \`${0##*/} $1\`"
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "practice page does not exist: ${1/$PWD\//}" >&2
 		tput sgr0
 		return 1
@@ -2345,7 +2349,7 @@ function remove_chapter {
 			echo "you can rejoin this chapter later by running \`${0##*/} $1\`"
 		fi
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "chapter does not exist: ${1/$PWD\//}" >&2
 		tput sgr0
 		return 1
@@ -2396,7 +2400,7 @@ function rename_chapter {
 		echo "to"
 		echo "    $2"
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "failed to rename chapter: $source" >&2
 		tput sgr0
 		return 1
@@ -2431,12 +2435,12 @@ function move_page {
 			sed -i "/^${source##*/}$/d" "${source%/*}/.index"
 			join_page "${destination%/}/${source##*/}"
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "failed to move source: $source" >&2
 			tput sgr0
 		fi
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "page not indexed: $source" >&2
 		tput sgr0
 	fi
@@ -2455,7 +2459,7 @@ function move_chapter {
 
 	if ! [ -d "$source" ] && [ -d "${destination%/*}" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "source or destination does not exist!" >&2
 		tput sgr0
 		return 1
@@ -2473,7 +2477,7 @@ function move_chapter {
 				echo "${source##*/}" >> "${destination}/.index"
 			fi
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "failed to move!" >&2
 			tput sgr0
 		fi
@@ -2488,7 +2492,7 @@ function move_chapter {
 				echo "${destination##*/}" >> "${destination%/*}/.index"
 			fi
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "failed to move!" >&2
 			tput sgr0
 		fi
@@ -2512,13 +2516,13 @@ function swap_page {
 			sed -i "${source_index}d" "${location}/.index"
 			sed -i "${source_index}i ${2##*/}" "${location}/.index"
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "location not indexed: $location" >&2
 			tput sgr0
 			return 1
 		fi
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "locations are not equal: $location" >&2
 		tput sgr0
 		return 1
@@ -2552,7 +2556,7 @@ function swap_chapter {
 			move_chapter "$PWD/temporary_destination_chapter" "${source%/*}" "$source_index"
 		fi
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "source or destination does not exist"
 		tput sgr0
 	fi
@@ -2619,7 +2623,7 @@ function move_files {
 				fi
 			fi
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "invalid locations given:" >&2
 			echo "  source: $source" >&2
 			echo "  destination: $destination" >&2
@@ -2646,7 +2650,7 @@ function move_files {
 			# destination exists, error cannot overwrite
 			if [ -f "$destination" ]
 			then
-				tput bold
+				tput setaf $SEVERITY_HIGH
 				echo "destination exists, cannot overwrite." >&2
 				tput sgr0
 				return 1
@@ -2663,14 +2667,14 @@ function move_files {
 		then
 			move_page "$source" "$destination"
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "destination directory does not exist: $destination" >&2
 			tput sgr0
 			return 1
 		fi
 	# otherwise error invalid source
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "invalid destination: $destination" >&2
 		tput sgr0
 		return 1
@@ -2691,7 +2695,7 @@ function reorder_index {
 	then
 		index_file="${location%/*}/.index"
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "invalid path: $location" >&2
 		tput sgr0
 		return 1
@@ -2709,13 +2713,13 @@ function reorder_index {
 				sed -i "${new_index}a ${location##*/}" "$index_file"
 				break
 			else
-				tput bold
+				tput setaf $SEVERITY_HIGH
 				echo "invalid number"
 				tput sgr0
 			fi
 		done
 	else
-		tput bold
+		tput setaf $SEVERITY_HIGH
 		echo "not indexed: $1" >&2
 		tput sgr0
 		return 1
@@ -2784,7 +2788,7 @@ function analyze_paramters {
 			list_index "."
 			return 0
 		else
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "practice directory not initialized yet"
 			echo "run \`${0##*/} --help\`"
 			tput sgr0
@@ -2811,7 +2815,7 @@ function analyze_paramters {
 
 			if ! analyze_path "${hierarchy/$PWD/}" "$peek"
 			then
-				tput bold
+				tput setaf $SEVERITY_HIGH
 				echo "analyzing path failed: $path" >&2
 				tput sgr0
 			fi
@@ -2819,7 +2823,7 @@ function analyze_paramters {
 	else
 		if ! move_files "./${1#\.\/}" "./${2#\.\/}"
 		then
-			tput bold
+			tput setaf $SEVERITY_HIGH
 			echo "operation failed: $source" >&2
 			tput sgr0
 		fi
@@ -2835,7 +2839,7 @@ then
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
-		tput bold
+		tput setaf $SEVERITY_LOW
 		echo "configuring repository for the latest update..." >&2
 		tput sgr0
 		if ! validate_configuration "./.index"
