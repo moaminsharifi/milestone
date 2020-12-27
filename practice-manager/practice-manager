@@ -866,9 +866,9 @@ function generate_html_item_with_link {
 	then
 		if [ -n "$link_class" ]
 		then
-			tag="${tag}<a class=\"${link_class}\" href=\"/${address}\">"
+			tag="${tag}<a class=\"${link_class}\" href=\"/${address#/}\">"
 		else
-			tag="${tag}<a href=\"/${address}\">"
+			tag="${tag}<a href=\"/${address#/}\">"
 		fi
 		tag_end="</a></li>"
 	else
@@ -1906,6 +1906,70 @@ function generate_comment_section {
 	fi
 }
 
+# requires index
+function find_index_alias {
+	index_alias=
+
+	if [ "$1" = "0" ]
+	then
+		return 0
+	fi
+	
+	local alias_file=
+	local alias=
+	local location=
+	local entry=
+	for entry in ${1//./ }
+	do
+		((entry++))
+		if [ "$entry" = "0" ]
+		then
+			tput setaf $SEVERITY_HIGH
+			echo "invalid index number: $1 => $location"
+			tput sgr0
+			return 1
+		fi
+
+		if [ -z "$location" ]
+		then
+			location="$(sed -n "${entry}p" ".index")"
+		else
+			location="${location}/$(sed -n "${entry}p" "${location}/.index")"
+		fi
+
+		if [ -d "$location" ]
+		then
+			alias_file="${location}/README.alias.txt"
+		elif [ -f "$location" ]
+		then
+			if [ "$entry" = "1" ]
+			then
+				continue
+			fi
+			alias_file="${location%.*}.alias.txt"
+		else
+			tput setaf $SEVERITY_HIGH
+			echo "invalid index for aliasing: ${1} => ${location}"
+			tput sgr0
+			return 1
+		fi
+
+		if [ -f "$alias_file" ] && [ "$(wc -m < "$alias_file")" -gt 0 ]
+		then
+			alias="${alias}/$(cat "$alias_file")"
+
+			if [ "$entry" = "0" ]
+			then
+				alias="${alias}/index"
+			fi
+		else
+			return 1
+		fi
+	done
+
+	index_alias="$alias"
+}
+
 # requires absolute path to page
 function generate_quick_access_section {
 	local page="${1%.*}"
@@ -1934,37 +1998,37 @@ function generate_quick_access_section {
 		next_index="$page_index"
 	fi
 
-	#generate_html_nav "$1" begin "Practice Navigation"
 	generate_html_list "$1" begin pager
 
-	#button="<span aria-hidden="true">&larr;</span> "
+	find_index_alias "${previous_index:-0}"
+
 	button="previous page"
 	if [ -n "$previous_index" ]
 	then
-		# alternative classes: page-item page-link
-		generate_html_item_with_link "$1" "$button" "${previous_index}.html" previous
+		previous_index="${previous_index}.html"
+		generate_html_item_with_link "$1" "$button" "${index_alias:-$previous_index}" previous
 	else
 		generate_html_item_with_link "$1" "$button" "#" "previous disabled"
 	fi
 
-	#button="<span aria-hidden="true">&uarr;</span> "
 	button="top page"
 	if [ -z "$previous_index" ] || [ -z "$next_page" ]
 	then
 		generate_html_item_with_link "$1" "$button" "index.html" top
 	fi
 
-	#button="<span aria-hidden="true">&rarr;</span>"
+	find_index_alias "${next_index:-0}"
+
 	button="next page"
 	if [ -n "$next_index" ]
 	then
-		generate_html_item_with_link "$1" "$button" "${next_index}.html" next
+		next_index="${next_index}.html"
+		generate_html_item_with_link "$1" "$button" "${index_alias:-$next_index}" next
 	else
 		generate_html_item_with_link "$1" "$button" "#" "next disabled"
 	fi
 
 	generate_html_list "$1" end
-	#generate_html_nav "$1" end
 }
 
 function generate_table_of_content {
@@ -2025,6 +2089,8 @@ function generate_table_of_content {
 	done < "${hierarchy}/.index"
 }
 
+# requires path to page
+# requires index
 function generate_alias {
 	local path="${1%/}"
 	local index="$2"
