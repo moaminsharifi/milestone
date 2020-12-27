@@ -1350,8 +1350,12 @@ function index_page {
 			match="$(grep -n "^$entry" "${hierarchy}/.index")"
 			match="${match%%:*}"
 			match="${match%% *}"
-			((match--)) # shift index down because of readme indexes
-			index+="${match}."
+
+			if [ "${match:-0}" -gt 0 ]
+			then
+				((match--)) # shift index down because of readme indexes
+			fi
+			index+="${match:-0}."
 		fi
 
 		((depth++))
@@ -2014,7 +2018,7 @@ function generate_quick_access_section {
 	button="top page"
 	if [ -z "$previous_index" ] || [ -z "$next_page" ]
 	then
-		generate_html_item_with_link "$1" "$button" "index.html" top
+		generate_html_item_with_link "$1" "$button" "/" top
 	fi
 
 	find_index_alias "${next_index:-0}"
