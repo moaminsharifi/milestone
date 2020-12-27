@@ -866,9 +866,9 @@ function generate_html_item_with_link {
 	then
 		if [ -n "$link_class" ]
 		then
-			tag="${tag}<a class=\"${link_class}\" href=\"${address}\">"
+			tag="${tag}<a class=\"${link_class}\" href=\"/${address}\">"
 		else
-			tag="${tag}<a href=\"${address}\">"
+			tag="${tag}<a href=\"/${address}\">"
 		fi
 		tag_end="</a></li>"
 	else
@@ -999,7 +999,7 @@ function validate_page {
 	local page=
 	local extension=
 
-	for extension in title.txt comment.txt reference.txt config
+	for extension in alias.txt title.txt comment.txt reference.txt config
 	do
 		page="${1%.*}.${extension}"
 
@@ -1036,7 +1036,7 @@ function validate_chapter {
 	# update configuration of chapter
 	regenerate_configuration "${1%/}/.config"
 
-	for extension in md config title.txt comment.txt reference.txt
+	for extension in md config alias.txt title.txt comment.txt reference.txt
 	do
 		page="${1%/}/README.${extension}"
 
@@ -2025,6 +2025,88 @@ function generate_table_of_content {
 	done < "${hierarchy}/.index"
 }
 
+function generate_alias {
+	local path="${1%/}"
+	local index="$2"
+
+	if [ "$path" = "." ]
+	then
+		return 0
+	fi
+	
+	local alias_file=
+	local alias="html-files"
+	local target=
+	local location=
+	local entry=
+	for entry in ${1//\//$'\n'}
+	do
+		if [ -z "$location" ]
+		then
+			location="$entry"
+			continue
+		elif [ "$entry" = "." ]
+		then
+			location="./$entry"
+			continue
+		else
+			location="${location}/${entry}"
+		fi
+
+		if [ -f "${location}" ]
+		then
+			alias_file="${location%.*}.alias.txt"
+		elif [ -d "${location}" ]
+		then
+			alias_file="${location}/README.alias.txt"
+			target="../${target}"
+		else
+			tput setaf $SEVERITY_HIGH
+			echo "aliasing failed due to broken hierarchy: ${location}"
+			tput sgr0
+			return 1
+		fi
+
+		if [ -f "$alias_file" ] && [ "$(wc -m < "$alias_file")" -gt 0 ]
+		then
+			alias="${alias}/$(cat "$alias_file")"
+
+			if [ -d "$location" ] && ! [ -d "$alias" ]
+			then
+				if ! mkdir "$alias"
+				then
+					tput setaf $SEVERITY_HIGH
+					echo "cannot create alias directory: $alias"
+					tput sgr0
+					return 1
+				fi
+			fi
+
+			if [ -d "$path" ] && [ "$path" == "$location" ]
+			then
+				alias="${alias}/index"
+			fi
+		else
+			tput setaf $SEVERITY_MEDIUM
+			echo "alias not found: ${path}"
+			tput sgr0
+			return 1
+		fi
+	done
+
+	target="${target}${index}" # {../../../}{3.1.1.html}
+
+	if ! ln -s "html-files/$index" "$alias"
+	then
+		tput setaf $SEVERITY_MEDIUM
+		echo "failed to create link for alias: $path"
+		echo "  target: $target"
+		echo "  alias: $alias"
+		tput sgr0
+		return 1
+	fi
+}
+
 function generate_index_page {
 	local page="./html-files/index.html"
 	index=index
@@ -2055,6 +2137,7 @@ function generate_index_page {
 function generate_page {
 	index_page "$1"
 	index="$page_index"
+	generate_alias "$1" "${index}.html"
 	update_configuration "$1"
 	generate_html_section "$1" begin
 	generate_html_head "$1" begin
@@ -2097,6 +2180,7 @@ function generate_page {
 function generate_chapter {
 	index_page "$1"
 	index="$page_index"
+	generate_alias "${1%README.md}" "${index}.html"
 	update_configuration "$1"
 	generate_html_section "$1" begin
 	generate_html_head "$1" begin
@@ -2835,7 +2919,7 @@ function analyze_paramters {
 
 if [ -f ./.config ] && [ ./.index ]
 then
-	validation_check=202012182218
+	validation_check=202012270143
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
@@ -2850,12 +2934,6 @@ then
 		regenerate_configuration "./.config"
 		extract_configuration "./.config"
 		sed -i "s/^\(VALIDATION_ID=\)[0-9]*$/\1${validation_check}/" ./.config
-		echo "Notes:"
-		echo
-		echo "    1. practices are for whom have just begun learning a new skill"
-		echo "    2. practices should make reviewing newly learned skills possible, keep them as simple as possible"
-		echo "    3. practices are going to be used on a daily basis, keep them as short as possible"
-		echo "    4. practices should cover fundamental details not to be a comprehensive documentation"
 		echo
 		echo "configuration complete"
 		echo "run again to continue"
