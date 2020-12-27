@@ -84,7 +84,7 @@ main_configuration=\
 
 ## Design pages as you want
 #PAGE_TEMPLATE=\"navigation title reference comment source execution input output error pagination\"
-#CHAPTER_TEMPLATE=\"navigation title reference comment pagination\"
+#CHAPTER_TEMPLATE=\"navigation title reference comment pagination toc\"
 
 ## DO NOT EDIT!
 #VALIDATION_ID=0"
@@ -171,10 +171,10 @@ function generate_html_head {
 <!-- bootstrap -->
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
 <!-- prims plugin styles -->
-<Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/autolinker/prism-autolinker.min.css" rel="stylesheet">
-<Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/command-line/prism-command-line.min.css" rel="stylesheet">
-<Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet">
-<Link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/autolinker/prism-autolinker.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/command-line/prism-command-line.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet">
 <!-- ajax -->
 <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/themes/prism-tomorrow.min.css'>
 
@@ -438,7 +438,6 @@ function generate_html_body {
 	
 	if [ "$side" = "begin" ]
 	then
-#<body class="p-3">
 		cat << EOF >> "./html-files/${index}.html"
 <body class="container">
 EOF
@@ -612,9 +611,8 @@ EOF
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/normalize-whitespace/prism-normalize-whitespace.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/remove-initial-line-feed/prism-remove-initial-line-feed.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.22.0/plugins/show-language/prism-show-language.min.js"></script>
+</body>
 EOF
-
-	echo '</body>' >> "./html-files/${index}.html"
 }
 
 # optional begin/end
@@ -920,8 +918,19 @@ EOF
 function generate_list_group_item {
 	local link="${1}"
 	local title="${2}"
+	local badge_counter=
 
-	generate_html_link "$1" "$link" "$title" list-group-item
+	if [ -n "$3" ]
+	then
+		badge_counter="<span class=\"badge badge-primary badge-pill\">${3}</span>"
+	fi
+
+	cat << EOF >> "./html-files/${index}.html"
+<a href="${link}" class="list-group-item">
+	${title}
+	${badge_counter}
+</a>
+EOF
 }
 
 # required functions for managing practice pages
@@ -988,6 +997,11 @@ function regenerate_configuration {
 		case "$config" in
 			GENERATES_ERROR) config="GENERATES_RUNTIME_ERROR" ;;
 			LANGUAGE) config="SYNTAX" ;;
+			CHAPTER_TEMPLATE)
+			   if [ "$validation_check" == "202012271813" ]
+			   then
+			   	   value="${value%\"} toc\""
+			   fi ;;
 		esac
 
 		sed -i "/^#${config}=/s/^#\(${config}\)=.*/\1=${value}/" "$1"
@@ -1912,7 +1926,7 @@ function generate_comment_section {
 
 # requires index
 function find_index_alias {
-	index_alias=
+	page_alias=
 
 	if [ "$1" = "0" ]
 	then
@@ -1971,7 +1985,7 @@ function find_index_alias {
 		fi
 	done
 
-	index_alias="$alias"
+	page_alias="$alias"
 }
 
 # requires absolute path to page
@@ -2010,7 +2024,7 @@ function generate_quick_access_section {
 	if [ -n "$previous_index" ]
 	then
 		previous_index="${previous_index}.html"
-		generate_html_item_with_link "$1" "$button" "${index_alias:-$previous_index}" previous
+		generate_html_item_with_link "$1" "$button" "${page_alias:-$previous_index}" previous
 	else
 		generate_html_item_with_link "$1" "$button" "#" "previous disabled"
 	fi
@@ -2027,7 +2041,7 @@ function generate_quick_access_section {
 	if [ -n "$next_index" ]
 	then
 		next_index="${next_index}.html"
-		generate_html_item_with_link "$1" "$button" "${index_alias:-$next_index}" next
+		generate_html_item_with_link "$1" "$button" "${page_alias:-$next_index}" next
 	else
 		generate_html_item_with_link "$1" "$button" "#" "next disabled"
 	fi
@@ -2037,10 +2051,13 @@ function generate_quick_access_section {
 
 function generate_table_of_content {
 	local hierarchy="${1%/*}"
+	local heading="${2:-false}"
+	local nest="${3:-1}"
 	local entry=
 	local indentation=
 	local local_index=
 	local title=
+	local page_link=
 
 	while read -r entry
 	do
@@ -2050,24 +2067,35 @@ function generate_table_of_content {
 			if [ "$entry" = "README.md" ]
 			then
 				index_page "${hierarchy}/${entry}"
-				if [ "$page_index" = "0" ]
+				if [ "$page_index" = "0" ] || [ "$heading" == "true" ]
 				then
-					title="$(cat "${hierarchy}/${entry%.*}.title.txt")"
-					generate_html_header_with_link "$1" 3 "$title" "${page_index}.html"
+					heading="false"
+					#title="$(cat "${hierarchy}/${entry%.*}.title.txt")"
+					#generate_html_header_with_link "$1" 3 "$title" "${page_index}.html"
 					generate_html_breaker "$1"
-					generate_html_header "$1" 4 "Table of Content"
+					generate_html_header "$1" 3 "Table of Content"
 					generate_list_group_root "$1" begin
 				else
 					badge=0
 					generate_group_badge "$1"
 					title="${page_index%.0}. $(cat "${hierarchy}/${entry%.*}.title.txt")"
-					generate_list_group_collapse_item "${page_index//./-}" "$title" "$badge"
+					if [ "$nest" -gt 0 ]
+					then
+						generate_list_group_collapse_item "${page_index//./-}" "$title" "$badge"
+					else
+						page_link="${page_index}.html"
+						find_index_alias "$page_index"
+						generate_list_group_item "${page_alias:-$page_link}" "$title" "$badge"
+					fi
 					generate_list_group "$1" begin "${page_index//./-}"
 				fi
 			elif [ -f "${hierarchy}/${entry%/}/.index" ]
 			then
-				generate_table_of_content "${hierarchy}/${entry%/}/.index"
-				generate_list_group "$1" end
+				if [ "$nest" -gt 0 ]
+				then
+					generate_table_of_content "${hierarchy}/${entry%/}/.index" "false" "$[nest - 1]"
+					generate_list_group "$1" end
+				fi
 			else
 				tput setaf $SEVERITY_HIGH
 				echo "broken hierarchy in ${hierarchy}/${entry%/}/.index"
@@ -2088,7 +2116,9 @@ function generate_table_of_content {
 		else
 			index_page "${hierarchy}/${entry}"
 			title="${page_index%.0}. $(cat "${hierarchy}/${entry%.*}.title.txt")"
-			generate_list_group_item "${page_index}.html" "$title"
+			page_link="${page_index}.html"
+			find_index_alias "$page_index"
+			generate_list_group_item "${page_alias:-$page_link}" "$title"
 		fi
 	done < "${hierarchy}/.index"
 }
@@ -2183,20 +2213,25 @@ function generate_index_page {
 
 	update_configuration "$page"
 	generate_html_section "$page" begin
-	generate_html_head "$page" begin
-	generate_html_style "$page" begin
-	generate_html_style "$page" begin nested-list
-	generate_html_style "$page" end
-	generate_html_head "$page" end
-	generate_html_body "$page" begin
-	generate_html_div "$page"
-	generate_table_of_content "./.index"
-	generate_list_group_root "$1" end
-	generate_html_div "$page" end
-	generate_html_script "$page" begin
-	generate_html_script "$page" begin nested-list
-	generate_html_script "$page" end
-	generate_html_body "$page" end
+
+		generate_html_head "$page" begin
+			generate_html_style "$page" begin
+			generate_html_style "$page" begin nested-list
+			generate_html_style "$page" end
+		generate_html_head "$page" end
+
+		generate_html_body "$page" begin
+
+			generate_html_header_with_link "$page" 3 "Milestone" "0.html"
+			generate_table_of_content "./.index" "true" "2"
+			generate_list_group_root "$page" end
+
+			generate_html_script "$page" begin
+			generate_html_script "$page" begin nested-list
+			generate_html_script "$page" end
+
+		generate_html_body "$page" end
+
 	generate_html_section "$page" end
 }
 
@@ -2209,13 +2244,15 @@ function generate_page {
 	index="$page_index"
 	generate_alias "$1" "${index}.html"
 	update_configuration "$1"
+
 	generate_html_section "$1" begin
-	generate_html_head "$1" begin
-	generate_html_style "$1" begin
-	generate_html_style "$1" end
-	generate_html_head "$1" end
-	generate_html_body "$1" begin
-	generate_html_div "$1" begin container
+
+		generate_html_head "$1" begin
+			generate_html_style "$1" begin
+			generate_html_style "$1" end
+		generate_html_head "$1" end
+
+		generate_html_body "$1" begin
 
 	local section=
 	for section in $PAGE_TEMPLATE
@@ -2238,10 +2275,10 @@ function generate_page {
 		esac
 	done
 
-	generate_html_div "$1" end container
-	generate_html_script "$1" begin
-	generate_html_script "$1" end
-	generate_html_body "$1" end
+			generate_html_script "$1" begin
+			generate_html_script "$1" end
+
+		generate_html_body "$1" end
 	generate_html_section "$1" end
 	index=
 }
@@ -2252,13 +2289,15 @@ function generate_chapter {
 	index="$page_index"
 	generate_alias "${1%README.md}" "${index}.html"
 	update_configuration "$1"
+
 	generate_html_section "$1" begin
-	generate_html_head "$1" begin
-	generate_html_style "$1" begin
-	generate_html_style "$1" end
-	generate_html_head "$1" end
-	generate_html_body "$1" begin
-	generate_html_div "$1" begin container
+		generate_html_head "$1" begin
+			generate_html_style "$1" begin
+			generate_html_style "$page" begin nested-list
+			generate_html_style "$1" end
+		generate_html_head "$1" end
+
+		generate_html_body "$1" begin
 
 	local section=
 	for section in $CHAPTER_TEMPLATE
@@ -2274,14 +2313,18 @@ function generate_chapter {
 			input) INPUT=true; continue ;;
 			error) ERROR=true; continue ;;
 			pagination) PAGINATION=true; generate_quick_access_section "$1" ;;
+			toc) TABLE_OF_CONTENT=true;
+				generate_table_of_content "${1%/*}/.index" "true" "2"
+				generate_list_group_root "${1%/*}/.index" end
+				;;
 			*) tput setaf $SEVERITY_HIGH; echo "invalid section name \`$section\`"; tput sgr0; continue ;;
 		esac
 	done
 
-	generate_html_div "$1" end container
-	generate_html_script "$1" begin
-	generate_html_script "$1" end
-	generate_html_body "$1" end
+			generate_html_script "$1" begin
+			generate_html_script "$1" end
+
+		generate_html_body "$1" end
 	generate_html_section "$1" end
 	index=
 }
@@ -2989,7 +3032,7 @@ function analyze_paramters {
 
 if [ -f ./.config ] && [ ./.index ]
 then
-	validation_check=202012270143
+	validation_check=202012271813
 	source ./.config
 	if [ "${VALIDATION_ID:-0}" -lt "$validation_check" ]
 	then
