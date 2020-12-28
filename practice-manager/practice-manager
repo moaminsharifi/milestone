@@ -335,7 +335,7 @@ button.list-group-item:focus,
 button.list-group-item:hover {
 	color: #555;
 	text-decoration: none;
-	background-color: #eaeaea;
+	background-color: #dfdfdf;
 }
 
 .group-child {
@@ -932,7 +932,7 @@ function generate_list_group_item {
 	local badge_counter=
 	local classes="list-group-item"
 
-	if [ "$3" -eq 1 ]
+	if [ "$3" -le 1 ]
 	then
 		classes="${classes} group-child"
 	fi
