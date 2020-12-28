@@ -856,11 +856,10 @@ function generate_html_item {
 # optional class
 # optional link class
 function generate_html_item_with_link {
-	local page="$1"
-	local text="$2"
-	local address="$3"
-	local class="$4"
-	local link_class="$5"
+	local text="$1"
+	local address="$2"
+	local class="$3"
+	local link_class="$4"
 	local tag=
 	local tag_end="</li>"
 
@@ -1634,6 +1633,7 @@ function generate_navigation_section {
 	local local_index=
 
 	generate_html_ordered_list "$1" begin breadcrumb
+	generate_html_item_with_link "Home" "/" breadcrumb-item
 
 	for entry in ${1//\//$'\n'}
 	do
@@ -1654,7 +1654,7 @@ function generate_navigation_section {
 				local_index="${local_index//[^\/]/}"
 				local_index="${#local_index}"
 				page="$(cut -d"." -f1-"$local_index" <<< "$page_index").0.html"
-				generate_html_item_with_link "$1" "${title:-"..."}" "$page" breadcrumb-item
+				generate_html_item_with_link "${title:-"..."}" "$page" breadcrumb-item
 			fi
 		elif [ -f "$hierarchy" ] && [ -f "${hierarchy%.*}.title.txt" ]
 		then
@@ -2042,15 +2042,15 @@ function generate_quick_access_section {
 	if [ -n "$previous_index" ]
 	then
 		previous_index="${previous_index}.html"
-		generate_html_item_with_link "$1" "$button" "${page_alias:-$previous_index}" previous
+		generate_html_item_with_link "$button" "${page_alias:-$previous_index}" previous
 	else
-		generate_html_item_with_link "$1" "$button" "#" "previous disabled"
+		generate_html_item_with_link "$button" "#" "previous disabled"
 	fi
 
 	button="top page"
 	if [ -z "$previous_index" ] || [ -z "$next_page" ]
 	then
-		generate_html_item_with_link "$1" "$button" "/" top
+		generate_html_item_with_link "$button" "/" top
 	fi
 
 	find_index_alias "${next_index:-0}"
@@ -2059,9 +2059,9 @@ function generate_quick_access_section {
 	if [ -n "$next_index" ]
 	then
 		next_index="${next_index}.html"
-		generate_html_item_with_link "$1" "$button" "${page_alias:-$next_index}" next
+		generate_html_item_with_link "$button" "${page_alias:-$next_index}" next
 	else
-		generate_html_item_with_link "$1" "$button" "#" "next disabled"
+		generate_html_item_with_link "$button" "#" "next disabled"
 	fi
 
 	generate_html_list "$1" end
