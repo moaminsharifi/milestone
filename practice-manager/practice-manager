@@ -1015,7 +1015,7 @@ function regenerate_configuration {
 			GENERATES_ERROR) config="GENERATES_RUNTIME_ERROR" ;;
 			LANGUAGE) config="SYNTAX" ;;
 			CHAPTER_TEMPLATE)
-				if [ "$validation_check" == "202012271813" ] && [ "$(grep -n "toc" <<< "$value")" == "" ]
+				if [ "$validation_check" == "202012271813" ] && [ "$(grep "toc" <<< "$value")" == "" ]
 				then
 					value="${value%\"} toc\""
 				fi ;;
