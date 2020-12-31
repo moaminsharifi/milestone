@@ -1084,7 +1084,7 @@ function validate_chapter {
 		then
 			if [ "$extension" = "md" ]
 			then
-				echo -e "# Practice Repository\n" > "$page"
+				echo -e "# Milestone Notebooks\n" > "$page"
 				echo -n "This file is automatically created by " >> "$page"
 				echo -n "<b>Practice Manager</b> " >> "$page"
 				echo -n "and is part of the " >> "$page"
@@ -2244,7 +2244,7 @@ function generate_index_page {
 
 		generate_html_body "$page" begin
 
-			generate_html_header_with_link "$page" 3 "Milestone" "0.html"
+			generate_html_header_with_link "$page" 2 "Notebooks" "0.html"
 			generate_table_of_content "./.index" "true" "2"
 			generate_list_group_root "$page" end
 
