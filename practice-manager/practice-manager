@@ -943,7 +943,7 @@ function generate_list_group_item {
 	fi
 
 	cat << EOF >> "./html-files/${index}.html"
-<a href="${link}" class="${classes}">
+<a href="/${link#/}" class="${classes}">
 	${title}
 	${badge_counter}
 </a>
